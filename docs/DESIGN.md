@@ -51,6 +51,7 @@ Um script `db:seed` existe adicionalmente, por conveniência, sem ser exigido.
 | D13 | Exportação sem links | **422**, não 400 | 400 já significa falha de validação. Com o mesmo status para os dois casos, o front não consegue distinguir "requisição malformada" de "não há nada a exportar". Ver §4.3. |
 | D14 | Navegação no redirect | **`window.location.replace`**, não `href` | `href` empilha a página de redirect no histórico: o botão Voltar retorna a ela, que redireciona de novo, prendendo o usuário. Ver §5.3. |
 | D15 | Retenção dos CSVs no R2 | **Lifecycle rule de 7 dias** sobre o prefixo `exports/` | Cada exportação cria um objeto novo e nada apaga: o armazenamento cresceria de forma monotônica para sempre. Regra no bucket em vez de job na aplicação — não há código para manter nem para falhar em silêncio. Também limita a janela de exposição dos arquivos públicos. Ver §4.5.1. |
+| D16 | Topologia de publicação | **Front e API em origens separadas**, sem proxy reverso; execução local via `docker-compose` | O enunciado exige o repositório, não deploy público. Front em `:5173`, API em `:3333`. Define a blocklist de slugs reservados (§4.3.1) e mantém o Dockerfile do web fora de escopo. |
 
 ### Ambiente verificado
 
@@ -185,17 +186,29 @@ Sem defesa, o resultado é uma falha silenciosa: criar um link com slug
 funciona — e abrir a URL mostra a página de "link não encontrado". Para sempre,
 sem erro em lugar nenhum.
 
-`create-link` rejeita com **409** os slugs reservados:
+A blocklist é derivada da **topologia de publicação** (D16): a URL curta é
+`${FRONTEND_URL}/${slug}`, então um slug colide com caminhos servidos pelo
+**front**, não pela API. Com front e API em portas distintas, a lista contém um
+único item:
 
 ```ts
-export const RESERVED_SLUGS = ['not-found', 'api', 'docs', 'assets'] as const
+export const RESERVED_SLUGS = ['assets'] as const
 ```
 
+`assets` está na lista porque o Vite emite os arquivos compilados sob `/assets/`
+— é caminho ocupado pelo servidor estático, não uma rota do React.
+
+**Não** são reservados:
+
+| Candidato | Por que fica de fora |
+|---|---|
+| `not-found` | A tela de link não encontrado é renderizada **dentro** da rota `/:slug` quando a API devolve 404. Não existe rota estática `/not-found` (§5.3). |
+| `api`, `docs` | São rotas do servidor, em outra origem. Só colidiriam se front e API compartilhassem domínio atrás de um proxy reverso. |
+
 **A lista precisa crescer junto com as rotas do front.** Adicionar uma página
-`/sobre` no futuro sequestraria qualquer link `sobre` já criado. Para evitar que
-as duas listas divirjam, os slugs reservados são derivados das rotas estáticas
-declaradas no front, não escritos à mão em dois lugares — e um teste verifica
-que toda rota estática do front está coberta.
+`/sobre` sequestraria qualquer link `sobre` já criado; publicar a API sob
+`/api/` no mesmo domínio exigiria reservar `api`. Um teste confronta a blocklist
+com a tabela de rotas do front, para que as duas não divirjam em silêncio.
 
 Serviços reais evitam o problema separando os domínios (`bit.ly/abc` encurta,
 `app.bitly.com` administra). O enunciado exige `/:url-encurtada` na raiz, então
