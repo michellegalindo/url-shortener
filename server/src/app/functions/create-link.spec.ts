@@ -93,4 +93,34 @@ describe('createLink', () => {
       createLink({ originalUrl: 'https://example.com', slug: 'ab' })
     ).rejects.toBeInstanceOf(z.ZodError)
   })
+
+  it('resolve corrida de concorrência para o mesmo slug em Left, não em rejeição', async () => {
+    const attempts = 50
+
+    const results = await Promise.allSettled(
+      Array.from({ length: attempts }, (_, i) =>
+        createLink({ originalUrl: `https://race.com/${i}`, slug: 'corrida' })
+      )
+    )
+
+    const rejected = results.filter(r => r.status === 'rejected')
+    expect(rejected).toHaveLength(0)
+
+    const fulfilled = results.filter(
+      (
+        r
+      ): r is PromiseFulfilledResult<Awaited<ReturnType<typeof createLink>>> =>
+        r.status === 'fulfilled'
+    )
+
+    const rightResults = fulfilled.filter(r => isRight(r.value))
+    const leftResults = fulfilled.filter(r => isLeft(r.value))
+
+    expect(rightResults).toHaveLength(1)
+    expect(leftResults).toHaveLength(attempts - 1)
+
+    for (const left of leftResults) {
+      expect(unwrapEither(left.value)).toBeInstanceOf(SlugAlreadyExists)
+    }
+  })
 })
