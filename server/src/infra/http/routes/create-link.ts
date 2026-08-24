@@ -2,7 +2,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { createLink } from '@/app/functions/create-link'
 import { isLeft, unwrapEither } from '@/infra/shared/either'
-import { errorSchema, linkSchema } from '../schemas'
+import { errorSchema, linkSchema, linkToJson } from '../schemas'
 
 export const createLinkRoute: FastifyPluginAsyncZod = async app => {
   app.post(
@@ -31,12 +31,7 @@ export const createLinkRoute: FastifyPluginAsyncZod = async app => {
 
       const link = unwrapEither(result)
 
-      return reply.status(201).send({
-        originalUrl: link.originalUrl,
-        slug: link.slug,
-        accessCount: link.accessCount,
-        createdAt: link.createdAt.toISOString(),
-      })
+      return reply.status(201).send(linkToJson(link))
     }
   )
 }

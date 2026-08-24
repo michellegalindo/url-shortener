@@ -2,7 +2,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { listLinks } from '@/app/functions/list-links'
 import { isLeft, unwrapEither } from '@/infra/shared/either'
-import { errorSchema, linkSchema } from '../schemas'
+import { errorSchema, linkSchema, linkToJson } from '../schemas'
 
 export const listLinksRoute: FastifyPluginAsyncZod = async app => {
   app.get(
@@ -54,12 +54,7 @@ export const listLinksRoute: FastifyPluginAsyncZod = async app => {
       const page = unwrapEither(result)
 
       return reply.status(200).send({
-        links: page.links.map(link => ({
-          originalUrl: link.originalUrl,
-          slug: link.slug,
-          accessCount: link.accessCount,
-          createdAt: link.createdAt.toISOString(),
-        })),
+        links: page.links.map(linkToJson),
         nextCursor: page.nextCursor,
       })
     }

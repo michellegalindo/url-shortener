@@ -70,6 +70,18 @@ describe('GET /links/:slug', () => {
 
     expect(response.statusCode).toBe(404)
   })
+
+  it('não incrementa o contador de acessos', async () => {
+    await create('semcontagem')
+
+    await app.inject({ method: 'GET', url: '/links/semcontagem' })
+    const response = await app.inject({
+      method: 'GET',
+      url: '/links/semcontagem',
+    })
+
+    expect(response.json().accessCount).toBe(0)
+  })
 })
 
 describe('PATCH /links/:slug/visits', () => {
@@ -109,6 +121,7 @@ describe('DELETE /links/:slug', () => {
     })
 
     expect(response.statusCode).toBe(204)
+    expect(response.body).toBe('')
 
     const link = await app.inject({ method: 'GET', url: '/links/apagar' })
 
