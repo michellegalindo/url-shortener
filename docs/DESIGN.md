@@ -1336,6 +1336,25 @@ Nada disso é requisito nem pontua na correção:
 
 ---
 
+## 7.1 Divergências em relação ao projeto da aula
+
+O desafio é baseado no projeto `ftr-pos-360-upload-widget`. A arquitetura aqui é
+a mesma — `Either`, `app/functions` + `infra/{db,http,storage}`, Zod validando a
+entrada dentro da função, cursor do Postgres via `pg.unsafe().cursor()`,
+`randomUUID()` no nome do arquivo, prefixo de pasta no bucket. As divergências
+abaixo são deliberadas, e estão registradas para que se leiam como decisão.
+
+| Ponto | Projeto da aula | Aqui | Por quê |
+|---|---|---|---|
+| **Paginação** | `offset`/`pageSize` + `count()` → `{ items, total }` | keyset `(created_at, id)` → `{ links, nextCursor }` | O widget da aula não cria itens na mesma tela da lista; a nossa home cria. Com offset, cada inserção desloca as linhas e a próxima página repete ou pula itens (D11). |
+| **Download do CSV** | `fetch` → `blob()` → `<a download>` | `location.assign` com `Content-Disposition: attachment` | Não carrega o arquivo em memória e dispensa configurar CORS no bucket, que o `mode: 'cors'` da aula exige. |
+| **Isolamento de testes** | nenhum; dados aleatórios por teste | `TRUNCATE` por teste, sem paralelismo | Sem limpeza, testes de estado vazio passam na primeira execução e falham em todas as seguintes (D10). |
+| **CORS** | `origin: '*'` | origens de `FRONTEND_URL` | Prática correta; o custo é um modo de falha novo, mitigado logando as origens no boot (§4.8). |
+| **Porta do servidor** | `listen({ port: 3333 })` fixo | `listen({ port: env.PORT })` | A aula ignora a própria variável `PORT` que valida. |
+| **Nome do CSV** | `${new Date().toISOString()}-uploads.csv` | `${randomUUID()}-links.csv` | O enunciado exige nome **aleatório**; derivar de timestamp não atende. |
+
+---
+
 ## 8. Decisões em aberto
 
 Nenhuma. A1 (estratégia de paginação) foi resolvida em favor de **keyset** e

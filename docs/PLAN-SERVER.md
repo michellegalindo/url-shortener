@@ -60,23 +60,18 @@ url-shortener/
     ├── eslint.config.js
     ├── .prettierrc
     ├── .env.example
-    ├── .env.test.example
+    ├── .env.test                       # versionado: sem segredos, aponta p/ brevly_test
     ├── .dockerignore
     ├── Dockerfile
     └── src/
         ├── env.ts                          # parseEnv + env validado
-        ├── shared/
-        │   ├── either.ts                   # makeLeft/makeRight/isLeft/isRight/unwrapEither
-        │   ├── schemas.ts                  # slugSchema, originalUrlSchema
-        │   ├── reserved-slugs.ts           # blocklist derivada das rotas do front
-        │   └── cursor.ts                   # encode/decodeCursor (keyset)
         ├── app/
         │   ├── errors/
         │   │   ├── slug-already-exists.ts
         │   │   ├── slug-is-reserved.ts
         │   │   ├── link-not-found.ts
         │   │   └── no-links-to-export.ts
-        │   └── use-cases/
+        │   └── functions/
         │       ├── create-link.ts          + .spec.ts
         │       ├── list-links.ts           + .spec.ts
         │       ├── get-link-by-slug.ts     + .spec.ts
@@ -86,8 +81,15 @@ url-shortener/
         ├── infra/
         │   ├── db/
         │   │   ├── index.ts                # exporta db (drizzle) E pg (driver)
-        │   │   ├── schema.ts
+        │   │   ├── schemas/
+        │   │   │   ├── index.ts            # barril: export const schema = { links }
+        │   │   │   └── links.ts
         │   │   └── migrations/
+        │   ├── shared/
+        │   │   ├── either.ts               # makeLeft/makeRight/isLeft/isRight/unwrapEither
+        │   │   ├── schemas.ts              # slugSchema, originalUrlSchema
+        │   │   ├── reserved-slugs.ts       # blocklist derivada das rotas do front
+        │   │   └── cursor.ts               # encode/decodeCursor (keyset)
         │   ├── storage/
         │   │   ├── uploader.ts             # interface Uploader
         │   │   ├── client.ts               # S3Client apontando para o R2
@@ -104,7 +106,6 @@ url-shortener/
         │           ├── delete-link.ts
         │           └── export-links.ts
         ├── test/
-        │   ├── global-setup.ts             # migrations no banco de teste
         │   ├── setup.ts                    # TRUNCATE por teste
         │   ├── in-memory-uploader.ts
         │   └── factories/
@@ -132,7 +133,7 @@ mapeamento de `Either` → status HTTP e a serialização das respostas.
 **Files:**
 - Create: `package.json`, `pnpm-workspace.yaml`
 - Create: `server/package.json`, `server/tsconfig.json`, `server/.prettierrc`
-- Create: `server/.env.example`, `server/.env.test.example`
+- Create: `server/.env.example`, `server/.env.test`
 - Create: `server/src/env.ts`
 - Test: `server/src/env.spec.ts`
 
@@ -194,7 +195,9 @@ Dockerfile.
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx --env-file .env src/scripts/seed.ts",
     "db:migrate:test": "dotenv -e .env.test -- drizzle-kit migrate",
+    "pretest": "pnpm db:migrate:test",
     "test": "dotenv -e .env.test -- vitest run",
+    "pretest:watch": "pnpm db:migrate:test",
     "test:watch": "dotenv -e .env.test -- vitest",
     "lint": "eslint src",
     "format": "prettier --write src"
@@ -266,7 +269,7 @@ Instalar: `pnpm install`
 
 ```env
 PORT=3333
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/brevly
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/brevly
 
 # Base pública do front. Usada no CORS e para montar a coluna
 # "URL encurtada" do CSV. Não faz parte das chaves do enunciado.
@@ -279,11 +282,11 @@ CLOUDFLARE_BUCKET=""
 CLOUDFLARE_PUBLIC_URL=""
 ```
 
-`server/.env.test.example`:
+`server/.env.test` — **commitado no repositório**, não um `.example`:
 
 ```env
 PORT=3334
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/brevly_test
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/brevly_test
 FRONTEND_URL=http://localhost:5173
 CLOUDFLARE_ACCOUNT_ID="test"
 CLOUDFLARE_ACCESS_KEY_ID="test"
@@ -292,8 +295,19 @@ CLOUDFLARE_BUCKET="test"
 CLOUDFLARE_PUBLIC_URL="http://localhost:9999"
 ```
 
-Copiar para uso local: `cp server/.env.example server/.env` e
-`cp server/.env.test.example server/.env.test`
+Copiar o de desenvolvimento: `cp server/.env.example server/.env`
+
+O `.env.test` é versionado de propósito: não contém segredo nenhum — aponta
+para o banco local de teste e usa credenciais fictícias da Cloudflare, já que
+os testes de exportação usam um duplo em memória. Versioná-lo faz `pnpm test`
+funcionar logo após o clone, sem que ninguém precise descobrir que havia um
+arquivo a copiar antes.
+
+O `.gitignore` da raiz ignora `.env` e `.env.test`, então adicione a exceção:
+
+```gitignore
+!server/.env.test
+```
 
 - [ ] **Step 5: Escrever o teste que falha**
 
@@ -305,7 +319,7 @@ import { parseEnv } from './env'
 
 const valid = {
   PORT: '3333',
-  DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
+  DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
   FRONTEND_URL: 'http://localhost:5173',
   CLOUDFLARE_ACCOUNT_ID: 'account',
   CLOUDFLARE_ACCESS_KEY_ID: 'key',
@@ -334,6 +348,12 @@ describe('parseEnv', () => {
     expect(() => parseEnv(incomplete)).toThrow(/FRONTEND_URL/)
   })
 
+  it('rejeita DATABASE_URL com esquema postgres:// em vez de postgresql://', () => {
+    expect(() =>
+      parseEnv({ ...valid, DATABASE_URL: 'postgres://user:pass@localhost:5432/db' })
+    ).toThrow(/DATABASE_URL/)
+  })
+
   it('lança quando uma chave da Cloudflare está vazia', () => {
     expect(() => parseEnv({ ...valid, CLOUDFLARE_BUCKET: '' })).toThrow(
       /CLOUDFLARE_BUCKET/
@@ -356,13 +376,15 @@ import { z } from 'zod'
 
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3333),
-  DATABASE_URL: z.string().min(1),
-  FRONTEND_URL: z.string().min(1),
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  // startsWith pega o erro mais comum: `postgres://` em vez de `postgresql://`
+  DATABASE_URL: z.url().startsWith('postgresql://'),
+  FRONTEND_URL: z.string().min(1), // aceita lista separada por vírgula
   CLOUDFLARE_ACCOUNT_ID: z.string().min(1),
   CLOUDFLARE_ACCESS_KEY_ID: z.string().min(1),
   CLOUDFLARE_SECRET_ACCESS_KEY: z.string().min(1),
   CLOUDFLARE_BUCKET: z.string().min(1),
-  CLOUDFLARE_PUBLIC_URL: z.string().min(1),
+  CLOUDFLARE_PUBLIC_URL: z.url(),
 })
 
 export type Env = z.infer<typeof envSchema>
@@ -405,9 +427,9 @@ git commit -m "feat(server): scaffold workspace and validate environment"
 ## Task 2: Postgres no Docker Compose, schema e migration
 
 **Files:**
-- Create: `docker-compose.yml`
+- Create: `docker-compose.yml`, `docker/init.sql`
 - Create: `server/drizzle.config.ts`
-- Create: `server/src/infra/db/schema.ts`, `server/src/infra/db/index.ts`
+- Create: `server/src/infra/db/schemas/index.ts`, `server/src/infra/db/index.ts`
 - Generate: `server/src/infra/db/migrations/*.sql`
 
 **Interfaces:**
@@ -434,6 +456,8 @@ services:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # cria brevly_test na primeira subida do volume (Step 2)
+      - ./docker:/docker-entrypoint-initdb.d
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres -d brevly']
       interval: 5s
@@ -448,13 +472,26 @@ O volume monta em `/var/lib/postgresql/data`, que é o `PGDATA` da imagem
 oficial. Montar o diretório pai sobe sem erro mas pode não persistir os dados
 (§7 do spec).
 
-Run: `docker compose up -d postgres`
+Note o volume extra `./docker:/docker-entrypoint-initdb.d`.
 
-- [ ] **Step 2: Criar o banco de teste**
+- [ ] **Step 2: Criar o banco de teste automaticamente**
 
-```bash
-docker compose exec postgres createdb -U postgres brevly_test
+`docker/init.sql`:
+
+```sql
+CREATE DATABASE brevly_test;
 ```
+
+A imagem oficial do Postgres executa qualquer `.sql` ou `.sh` encontrado em
+`/docker-entrypoint-initdb.d` na **primeira** inicialização do volume. O banco
+de teste passa a nascer junto com o principal, em vez de depender de alguém
+lembrar de rodar `createdb` — o tipo de passo manual que funciona na máquina de
+quem escreveu e falha na de quem clonou.
+
+Como roda só na primeira inicialização: se o volume já existir de uma tentativa
+anterior, é preciso recriá-lo com `docker compose down -v` antes.
+
+Run: `docker compose up -d postgres`
 
 - [ ] **Step 3: Verificar que o Postgres aceita conexões**
 
@@ -463,7 +500,7 @@ Expected: `accepting connections`
 
 - [ ] **Step 4: Definir o schema**
 
-`server/src/infra/db/schema.ts`:
+`server/src/infra/db/schemas/links.ts`:
 
 ```ts
 import { index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
@@ -484,7 +521,18 @@ export const links = pgTable(
   ]
 )
 
+```
+
+E o barril `server/src/infra/db/schemas/index.ts`:
+
+```ts
+import { links } from './links'
+
 export const schema = { links }
+```
+
+O barril é o idioma do projeto da aula: o código lê `schema.links`, e novas
+tabelas entram sem alterar nenhum import existente.
 ```
 
 O índice é composto e na mesma ordem do `ORDER BY` da paginação keyset
@@ -516,7 +564,7 @@ import { defineConfig } from 'drizzle-kit'
 
 export default defineConfig({
   dialect: 'postgresql',
-  schema: './src/infra/db/schema.ts',
+  schema: './src/infra/db/schemas/links.ts',
   out: './src/infra/db/migrations',
   dbCredentials: {
     url: process.env.DATABASE_URL as string,
@@ -549,7 +597,7 @@ Se `created_at` aparecer como `timestamp without time zone`, o
 - [ ] **Step 9: Commit**
 
 ```bash
-git add docker-compose.yml server/drizzle.config.ts server/src/infra/db/
+git add docker-compose.yml docker/ server/drizzle.config.ts server/src/infra/db/
 git commit -m "feat(server): add links schema and postgres compose service"
 ```
 
@@ -559,7 +607,7 @@ git commit -m "feat(server): add links schema and postgres compose service"
 
 **Files:**
 - Create: `server/vitest.config.ts`
-- Create: `server/src/test/global-setup.ts`, `server/src/test/setup.ts`
+- Create: `server/src/test/setup.ts`
 - Create: `server/src/test/factories/make-link.ts`
 - Test: `server/src/test/isolation.spec.ts`
 
@@ -579,7 +627,6 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
-    globalSetup: ['./src/test/global-setup.ts'],
     setupFiles: ['./src/test/setup.ts'],
     fileParallelism: false,
     include: ['src/**/*.spec.ts'],
@@ -591,22 +638,12 @@ export default defineConfig({
 o mesmo banco, e em paralelo o `TRUNCATE` de um apagaria as linhas que outro
 acabou de inserir (§4.9).
 
-- [ ] **Step 2: Rodar as migrations antes da suíte**
+Não há `globalSetup`: as migrations do banco de teste rodam pelo hook `pretest`
+do npm (Task 1), fora do Vitest. Chamar `execSync('drizzle-kit migrate')` de
+dentro da configuração funcionaria, mas coloca um processo filho no caminho de
+toda execução da suíte — inclusive no modo watch, a cada rerun.
 
-`server/src/test/global-setup.ts`:
-
-```ts
-import { execSync } from 'node:child_process'
-
-export default function setup() {
-  execSync('pnpm exec drizzle-kit migrate', { stdio: 'inherit' })
-}
-```
-
-O `globalSetup` roda uma vez por execução da suíte, já com o `.env.test`
-carregado pelo `dotenv-cli` no script `test`.
-
-- [ ] **Step 3: Limpar a tabela antes de cada teste**
+- [ ] **Step 2: Limpar a tabela antes de cada teste**
 
 `server/src/test/setup.ts`:
 
@@ -624,7 +661,7 @@ afterAll(async () => {
 })
 ```
 
-- [ ] **Step 4: Criar a factory**
+- [ ] **Step 3: Criar a factory**
 
 `server/src/test/factories/make-link.ts`:
 
@@ -647,27 +684,27 @@ export function makeLink(overrides: Partial<NewLink> = {}): NewLink {
 }
 ```
 
-- [ ] **Step 5: Escrever o teste que prova o isolamento**
+- [ ] **Step 4: Escrever o teste que prova o isolamento**
 
 `server/src/test/isolation.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
 import { db } from '@/infra/db'
-import { links } from '@/infra/db/schema'
+import { schema } from '@/infra/db/schemas'
 import { makeLink } from './factories/make-link'
 
 describe('isolamento do banco de teste', () => {
   it('começa com a tabela vazia e insere uma linha', async () => {
-    expect(await db.select().from(links)).toHaveLength(0)
+    expect(await db.select().from(schema.links)).toHaveLength(0)
 
-    await db.insert(links).values(makeLink())
+    await db.insert(schema.links).values(makeLink())
 
-    expect(await db.select().from(links)).toHaveLength(1)
+    expect(await db.select().from(schema.links)).toHaveLength(1)
   })
 
   it('começa vazia de novo, apesar da inserção do teste anterior', async () => {
-    expect(await db.select().from(links)).toHaveLength(0)
+    expect(await db.select().from(schema.links)).toHaveLength(0)
   })
 })
 ```
@@ -676,18 +713,18 @@ O segundo teste é o que importa: ele falha se o `TRUNCATE` não estiver rodando
 e é exatamente a condição que torna impossíveis os testes de "lista vazia" mais
 adiante.
 
-- [ ] **Step 6: Rodar e confirmar que passa**
+- [ ] **Step 5: Rodar e confirmar que passa**
 
 Run: `cd server && pnpm test`
 Expected: PASS — os testes de `env.spec.ts` e os 2 de isolamento.
 
-- [ ] **Step 7: Rodar uma segunda vez**
+- [ ] **Step 6: Rodar uma segunda vez**
 
 Run: `cd server && pnpm test`
 Expected: PASS de novo, com a mesma contagem. Se o segundo teste falhar agora,
 o `TRUNCATE` não está sendo aplicado.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add server/vitest.config.ts server/src/test/
@@ -699,8 +736,8 @@ git commit -m "test(server): add isolated database test harness"
 ## Task 4: `Either` e schemas compartilhados
 
 **Files:**
-- Create: `server/src/shared/either.ts`, `server/src/shared/schemas.ts`
-- Test: `server/src/shared/either.spec.ts`, `server/src/shared/schemas.spec.ts`
+- Create: `server/src/infra/shared/either.ts`, `server/src/infra/shared/schemas.ts`
+- Test: `server/src/infra/shared/either.spec.ts`, `server/src/infra/shared/schemas.spec.ts`
 
 **Interfaces:**
 - Consumes: nada.
@@ -712,7 +749,7 @@ git commit -m "test(server): add isolated database test harness"
 
 - [ ] **Step 1: Escrever o teste do `Either`**
 
-`server/src/shared/either.spec.ts`:
+`server/src/infra/shared/either.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -758,12 +795,12 @@ não-`undefined` (D7).
 
 - [ ] **Step 2: Rodar e confirmar que falha**
 
-Run: `cd server && pnpm exec vitest run src/shared/either.spec.ts`
+Run: `cd server && pnpm exec vitest run src/infra/shared/either.spec.ts`
 Expected: FAIL — `Failed to resolve import "./either"`
 
 - [ ] **Step 3: Implementar o `Either`**
 
-`server/src/shared/either.ts`:
+`server/src/infra/shared/either.ts`:
 
 ```ts
 export type Left<L> = { left: L; right?: never }
@@ -793,7 +830,7 @@ export function unwrapEither<L, R>(e: Either<L, R>): NonNullable<L | R> {
 
 - [ ] **Step 4: Escrever o teste dos schemas**
 
-`server/src/shared/schemas.spec.ts`:
+`server/src/infra/shared/schemas.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -835,12 +872,12 @@ describe('originalUrlSchema', () => {
 
 - [ ] **Step 5: Rodar e confirmar que falha**
 
-Run: `cd server && pnpm exec vitest run src/shared/schemas.spec.ts`
+Run: `cd server && pnpm exec vitest run src/infra/shared/schemas.spec.ts`
 Expected: FAIL — `Failed to resolve import "./schemas"`
 
 - [ ] **Step 6: Implementar os schemas**
 
-`server/src/shared/schemas.ts`:
+`server/src/infra/shared/schemas.ts`:
 
 ```ts
 import { z } from 'zod'
@@ -877,7 +914,7 @@ Expected: PASS
 - [ ] **Step 8: Commit**
 
 ```bash
-git add server/src/shared/
+git add server/src/infra/shared/
 git commit -m "feat(server): add Either type and shared validation schemas"
 ```
 
@@ -888,8 +925,8 @@ git commit -m "feat(server): add Either type and shared validation schemas"
 **Files:**
 - Create: `server/src/app/errors/slug-already-exists.ts`,
   `slug-is-reserved.ts`, `link-not-found.ts`, `no-links-to-export.ts`
-- Create: `server/src/shared/reserved-slugs.ts`
-- Test: `server/src/shared/reserved-slugs.spec.ts`
+- Create: `server/src/infra/shared/reserved-slugs.ts`
+- Test: `server/src/infra/shared/reserved-slugs.spec.ts`
 
 **Interfaces:**
 - Consumes: nada.
@@ -900,7 +937,7 @@ git commit -m "feat(server): add Either type and shared validation schemas"
 
 - [ ] **Step 1: Escrever o teste**
 
-`server/src/shared/reserved-slugs.spec.ts`:
+`server/src/infra/shared/reserved-slugs.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -936,12 +973,12 @@ describe('slugs reservados', () => {
 
 - [ ] **Step 2: Rodar e confirmar que falha**
 
-Run: `cd server && pnpm exec vitest run src/shared/reserved-slugs.spec.ts`
+Run: `cd server && pnpm exec vitest run src/infra/shared/reserved-slugs.spec.ts`
 Expected: FAIL — `Failed to resolve import "./reserved-slugs"`
 
 - [ ] **Step 3: Implementar a blocklist**
 
-`server/src/shared/reserved-slugs.ts`:
+`server/src/infra/shared/reserved-slugs.ts`:
 
 ```ts
 /**
@@ -973,7 +1010,7 @@ export function isReservedSlug(slug: string): boolean {
 
 - [ ] **Step 4: Rodar e confirmar que passa**
 
-Run: `cd server && pnpm exec vitest run src/shared/reserved-slugs.spec.ts`
+Run: `cd server && pnpm exec vitest run src/infra/shared/reserved-slugs.spec.ts`
 Expected: PASS — 5 testes
 
 - [ ] **Step 5: Criar as classes de erro**
@@ -1032,7 +1069,7 @@ export class NoLinksToExport extends Error {
 - [ ] **Step 6: Commit**
 
 ```bash
-git add server/src/app/errors/ server/src/shared/reserved-slugs.ts
+git add server/src/app/errors/ server/src/infra/shared/reserved-slugs.ts
 git commit -m "feat(server): add domain errors and reserved slug blocklist"
 ```
 
@@ -1041,8 +1078,8 @@ git commit -m "feat(server): add domain errors and reserved slug blocklist"
 ## Task 6: Use-case `create-link`
 
 **Files:**
-- Create: `server/src/app/use-cases/create-link.ts`
-- Test: `server/src/app/use-cases/create-link.spec.ts`
+- Create: `server/src/app/functions/create-link.ts`
+- Test: `server/src/app/functions/create-link.spec.ts`
 
 **Interfaces:**
 - Consumes: `db`, `links`, `Either`, `slugSchema`, `originalUrlSchema`,
@@ -1063,14 +1100,14 @@ git commit -m "feat(server): add domain errors and reserved slug blocklist"
 
 - [ ] **Step 1: Escrever o teste**
 
-`server/src/app/use-cases/create-link.spec.ts`:
+`server/src/app/functions/create-link.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { SlugAlreadyExists } from '@/app/errors/slug-already-exists'
 import { SlugIsReserved } from '@/app/errors/slug-is-reserved'
-import { isLeft, isRight, unwrapEither } from '@/shared/either'
+import { isLeft, isRight, unwrapEither } from '@/infra/shared/either'
 import { createLink } from './create-link'
 
 describe('createLink', () => {
@@ -1171,12 +1208,12 @@ validação de formato é erro do chamador, não resultado de negócio, e o
 
 - [ ] **Step 2: Rodar e confirmar que falha**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/create-link.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/create-link.spec.ts`
 Expected: FAIL — `Failed to resolve import "./create-link"`
 
 - [ ] **Step 3: Implementar o use-case**
 
-`server/src/app/use-cases/create-link.ts`:
+`server/src/app/functions/create-link.ts`:
 
 ```ts
 import { eq } from 'drizzle-orm'
@@ -1184,10 +1221,10 @@ import { z } from 'zod'
 import { SlugAlreadyExists } from '@/app/errors/slug-already-exists'
 import { SlugIsReserved } from '@/app/errors/slug-is-reserved'
 import { db } from '@/infra/db'
-import { links } from '@/infra/db/schema'
-import { type Either, makeLeft, makeRight } from '@/shared/either'
-import { isReservedSlug } from '@/shared/reserved-slugs'
-import { originalUrlSchema, slugSchema } from '@/shared/schemas'
+import { schema } from '@/infra/db/schemas'
+import { type Either, makeLeft, makeRight } from '@/infra/shared/either'
+import { isReservedSlug } from '@/infra/shared/reserved-slugs'
+import { originalUrlSchema, slugSchema } from '@/infra/shared/schemas'
 
 const createLinkInput = z.object({
   originalUrl: originalUrlSchema,
@@ -1213,9 +1250,9 @@ export async function createLink(
   }
 
   const existing = await db
-    .select({ id: links.id })
-    .from(links)
-    .where(eq(links.slug, slug))
+    .select({ id: schema.links.id })
+    .from(schema.links)
+    .where(eq(schema.links.slug, slug))
     .limit(1)
 
   if (existing.length > 0) {
@@ -1223,13 +1260,13 @@ export async function createLink(
   }
 
   const [created] = await db
-    .insert(links)
+    .insert(schema.links)
     .values({ originalUrl, slug })
     .returning({
-      originalUrl: links.originalUrl,
-      slug: links.slug,
-      accessCount: links.accessCount,
-      createdAt: links.createdAt,
+      originalUrl: schema.links.originalUrl,
+      slug: schema.links.slug,
+      accessCount: schema.links.accessCount,
+      createdAt: schema.links.createdAt,
     })
 
   if (!created) {
@@ -1246,13 +1283,13 @@ construção e não por disciplina.
 
 - [ ] **Step 4: Rodar e confirmar que passa**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/create-link.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/create-link.spec.ts`
 Expected: PASS — 8 testes
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add server/src/app/use-cases/create-link.ts server/src/app/use-cases/create-link.spec.ts
+git add server/src/app/functions/create-link.ts server/src/app/functions/create-link.spec.ts
 git commit -m "feat(server): add create-link use case"
 ```
 
@@ -1261,10 +1298,10 @@ git commit -m "feat(server): add create-link use case"
 ## Task 7: Cursor keyset e use-case `list-links`
 
 **Files:**
-- Create: `server/src/shared/cursor.ts`
-- Create: `server/src/app/use-cases/list-links.ts`
-- Test: `server/src/shared/cursor.spec.ts`,
-  `server/src/app/use-cases/list-links.spec.ts`
+- Create: `server/src/infra/shared/cursor.ts`
+- Create: `server/src/app/functions/list-links.ts`
+- Test: `server/src/infra/shared/cursor.spec.ts`,
+  `server/src/app/functions/list-links.spec.ts`
 
 **Interfaces:**
 - Consumes: `db`, `links`, `Either`, `LinkOutput` da Task 6.
@@ -1278,7 +1315,7 @@ git commit -m "feat(server): add create-link use case"
 
 - [ ] **Step 1: Escrever o teste do cursor**
 
-`server/src/shared/cursor.spec.ts`:
+`server/src/infra/shared/cursor.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -1319,12 +1356,12 @@ describe('cursor', () => {
 
 - [ ] **Step 2: Rodar e confirmar que falha**
 
-Run: `cd server && pnpm exec vitest run src/shared/cursor.spec.ts`
+Run: `cd server && pnpm exec vitest run src/infra/shared/cursor.spec.ts`
 Expected: FAIL — `Failed to resolve import "./cursor"`
 
 - [ ] **Step 3: Implementar o cursor**
 
-`server/src/shared/cursor.ts`:
+`server/src/infra/shared/cursor.ts`:
 
 ```ts
 import { z } from 'zod'
@@ -1368,13 +1405,13 @@ cliente e deve resultar em "primeira página", não em erro 500.
 
 - [ ] **Step 4: Escrever o teste da listagem**
 
-`server/src/app/use-cases/list-links.spec.ts`:
+`server/src/app/functions/list-links.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
 import { db } from '@/infra/db'
-import { links } from '@/infra/db/schema'
-import { isLeft, unwrapEither } from '@/shared/either'
+import { schema } from '@/infra/db/schemas'
+import { isLeft, unwrapEither } from '@/infra/shared/either'
 import { listLinks } from './list-links'
 
 async function seed(count: number, baseTime = Date.parse('2026-08-24T12:00:00Z')) {
@@ -1384,7 +1421,7 @@ async function seed(count: number, baseTime = Date.parse('2026-08-24T12:00:00Z')
     createdAt: new Date(baseTime + i * 1000),
   }))
 
-  await db.insert(links).values(rows)
+  await db.insert(schema.links).values(rows)
 }
 
 function unwrap<T>(result: Awaited<ReturnType<typeof listLinks>>) {
@@ -1461,7 +1498,7 @@ describe('listLinks', () => {
     const first = unwrap(await listLinks({ limit: 2 }))
 
     // um link novo entra no topo da ordenação, deslocando as linhas
-    await db.insert(links).values({
+    await db.insert(schema.links).values({
       originalUrl: 'https://example.com/novo',
       slug: 'slug-novo',
       createdAt: new Date(Date.parse('2026-08-24T13:00:00Z')),
@@ -1480,7 +1517,7 @@ describe('listLinks', () => {
   it('desempata por id quando createdAt é idêntico', async () => {
     const sameMoment = new Date('2026-08-24T12:00:00Z')
 
-    await db.insert(links).values([
+    await db.insert(schema.links).values([
       { originalUrl: 'https://a.com', slug: 'empate-a', createdAt: sameMoment },
       { originalUrl: 'https://b.com', slug: 'empate-b', createdAt: sameMoment },
       { originalUrl: 'https://c.com', slug: 'empate-c', createdAt: sameMoment },
@@ -1511,20 +1548,20 @@ O sexto teste é a regressão que motivou o keyset (D11): com `OFFSET`, o item
 
 - [ ] **Step 5: Rodar e confirmar que falha**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/list-links.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/list-links.spec.ts`
 Expected: FAIL — `Failed to resolve import "./list-links"`
 
 - [ ] **Step 6: Implementar a listagem**
 
-`server/src/app/use-cases/list-links.ts`:
+`server/src/app/functions/list-links.ts`:
 
 ```ts
 import { and, desc, eq, lt, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/infra/db'
-import { links } from '@/infra/db/schema'
-import { decodeCursor, encodeCursor } from '@/shared/cursor'
-import { type Either, makeRight } from '@/shared/either'
+import { schema } from '@/infra/db/schemas'
+import { decodeCursor, encodeCursor } from '@/infra/shared/cursor'
+import { type Either, makeRight } from '@/infra/shared/either'
 import type { LinkOutput } from './create-link'
 
 const listLinksInput = z.object({
@@ -1548,8 +1585,8 @@ export async function listLinks(
 
   const condition = anchor
     ? or(
-        lt(links.createdAt, anchor.createdAt),
-        and(eq(links.createdAt, anchor.createdAt), lt(links.id, anchor.id))
+        lt(schema.links.createdAt, anchor.createdAt),
+        and(eq(schema.links.createdAt, anchor.createdAt), lt(schema.links.id, anchor.id))
       )
     : undefined
 
@@ -1557,15 +1594,15 @@ export async function listLinks(
   // próxima página, sem precisar de um COUNT separado
   const rows = await db
     .select({
-      id: links.id,
-      originalUrl: links.originalUrl,
-      slug: links.slug,
-      accessCount: links.accessCount,
-      createdAt: links.createdAt,
+      id: schema.links.id,
+      originalUrl: schema.links.originalUrl,
+      slug: schema.links.slug,
+      accessCount: schema.links.accessCount,
+      createdAt: schema.links.createdAt,
     })
-    .from(links)
+    .from(schema.links)
     .where(condition)
-    .orderBy(desc(links.createdAt), desc(links.id))
+    .orderBy(desc(schema.links.createdAt), desc(schema.links.id))
     .limit(limit + 1)
 
   const hasNextPage = rows.length > limit
@@ -1587,13 +1624,13 @@ destructuring — nunca chega à API (D6).
 
 - [ ] **Step 7: Rodar e confirmar que passa**
 
-Run: `cd server && pnpm exec vitest run src/shared/cursor.spec.ts src/app/use-cases/list-links.spec.ts`
+Run: `cd server && pnpm exec vitest run src/infra/shared/cursor.spec.ts src/app/functions/list-links.spec.ts`
 Expected: PASS — 4 + 9 testes
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add server/src/shared/cursor.ts server/src/shared/cursor.spec.ts server/src/app/use-cases/list-links.ts server/src/app/use-cases/list-links.spec.ts
+git add server/src/infra/shared/cursor.ts server/src/infra/shared/cursor.spec.ts server/src/app/functions/list-links.ts server/src/app/functions/list-links.spec.ts
 git commit -m "feat(server): add keyset pagination and list-links use case"
 ```
 
@@ -1602,8 +1639,8 @@ git commit -m "feat(server): add keyset pagination and list-links use case"
 ## Task 8: Use-case `get-link-by-slug`
 
 **Files:**
-- Create: `server/src/app/use-cases/get-link-by-slug.ts`
-- Test: `server/src/app/use-cases/get-link-by-slug.spec.ts`
+- Create: `server/src/app/functions/get-link-by-slug.ts`
+- Test: `server/src/app/functions/get-link-by-slug.spec.ts`
 
 **Interfaces:**
 - Consumes: `db`, `links`, `Either`, `slugSchema`, `LinkNotFound`, `LinkOutput`.
@@ -1611,12 +1648,12 @@ git commit -m "feat(server): add keyset pagination and list-links use case"
 
 - [ ] **Step 1: Escrever o teste**
 
-`server/src/app/use-cases/get-link-by-slug.spec.ts`:
+`server/src/app/functions/get-link-by-slug.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
 import { LinkNotFound } from '@/app/errors/link-not-found'
-import { isLeft, isRight, unwrapEither } from '@/shared/either'
+import { isLeft, isRight, unwrapEither } from '@/infra/shared/either'
 import { createLink } from './create-link'
 import { getLinkBySlug } from './get-link-by-slug'
 
@@ -1665,21 +1702,21 @@ mover o incremento para dentro do `GET`, este teste falha.
 
 - [ ] **Step 2: Rodar e confirmar que falha**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/get-link-by-slug.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/get-link-by-slug.spec.ts`
 Expected: FAIL — `Failed to resolve import "./get-link-by-slug"`
 
 - [ ] **Step 3: Implementar**
 
-`server/src/app/use-cases/get-link-by-slug.ts`:
+`server/src/app/functions/get-link-by-slug.ts`:
 
 ```ts
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { LinkNotFound } from '@/app/errors/link-not-found'
 import { db } from '@/infra/db'
-import { links } from '@/infra/db/schema'
-import { type Either, makeLeft, makeRight } from '@/shared/either'
-import { slugSchema } from '@/shared/schemas'
+import { schema } from '@/infra/db/schemas'
+import { type Either, makeLeft, makeRight } from '@/infra/shared/either'
+import { slugSchema } from '@/infra/shared/schemas'
 import type { LinkOutput } from './create-link'
 
 const getLinkBySlugInput = z.object({ slug: slugSchema })
@@ -1693,13 +1730,13 @@ export async function getLinkBySlug(
 
   const [found] = await db
     .select({
-      originalUrl: links.originalUrl,
-      slug: links.slug,
-      accessCount: links.accessCount,
-      createdAt: links.createdAt,
+      originalUrl: schema.links.originalUrl,
+      slug: schema.links.slug,
+      accessCount: schema.links.accessCount,
+      createdAt: schema.links.createdAt,
     })
-    .from(links)
-    .where(eq(links.slug, slug))
+    .from(schema.links)
+    .where(eq(schema.links.slug, slug))
     .limit(1)
 
   if (!found) {
@@ -1712,13 +1749,13 @@ export async function getLinkBySlug(
 
 - [ ] **Step 4: Rodar e confirmar que passa**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/get-link-by-slug.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/get-link-by-slug.spec.ts`
 Expected: PASS — 4 testes
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add server/src/app/use-cases/get-link-by-slug.ts server/src/app/use-cases/get-link-by-slug.spec.ts
+git add server/src/app/functions/get-link-by-slug.ts server/src/app/functions/get-link-by-slug.spec.ts
 git commit -m "feat(server): add get-link-by-slug use case"
 ```
 
@@ -1727,8 +1764,8 @@ git commit -m "feat(server): add get-link-by-slug use case"
 ## Task 9: Use-case `increment-link-visits`
 
 **Files:**
-- Create: `server/src/app/use-cases/increment-link-visits.ts`
-- Test: `server/src/app/use-cases/increment-link-visits.spec.ts`
+- Create: `server/src/app/functions/increment-link-visits.ts`
+- Test: `server/src/app/functions/increment-link-visits.spec.ts`
 
 **Interfaces:**
 - Consumes: `db`, `links`, `Either`, `slugSchema`, `LinkNotFound`.
@@ -1737,12 +1774,12 @@ git commit -m "feat(server): add get-link-by-slug use case"
 
 - [ ] **Step 1: Escrever o teste**
 
-`server/src/app/use-cases/increment-link-visits.spec.ts`:
+`server/src/app/functions/increment-link-visits.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
 import { LinkNotFound } from '@/app/errors/link-not-found'
-import { isLeft, isRight, unwrapEither } from '@/shared/either'
+import { isLeft, isRight, unwrapEither } from '@/infra/shared/either'
 import { createLink } from './create-link'
 import { incrementLinkVisits } from './increment-link-visits'
 
@@ -1813,21 +1850,21 @@ perderia contagens e falharia aqui.
 
 - [ ] **Step 2: Rodar e confirmar que falha**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/increment-link-visits.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/increment-link-visits.spec.ts`
 Expected: FAIL — `Failed to resolve import "./increment-link-visits"`
 
 - [ ] **Step 3: Implementar**
 
-`server/src/app/use-cases/increment-link-visits.ts`:
+`server/src/app/functions/increment-link-visits.ts`:
 
 ```ts
 import { eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { LinkNotFound } from '@/app/errors/link-not-found'
 import { db } from '@/infra/db'
-import { links } from '@/infra/db/schema'
-import { type Either, makeLeft, makeRight } from '@/shared/either'
-import { slugSchema } from '@/shared/schemas'
+import { schema } from '@/infra/db/schemas'
+import { type Either, makeLeft, makeRight } from '@/infra/shared/either'
+import { slugSchema } from '@/infra/shared/schemas'
 
 const incrementLinkVisitsInput = z.object({ slug: slugSchema })
 
@@ -1843,10 +1880,10 @@ export async function incrementLinkVisits(
   // a soma acontece no banco, numa única instrução: ler-somar-gravar na
   // aplicação perderia contagens sob acessos simultâneos
   const updated = await db
-    .update(links)
-    .set({ accessCount: sql`${links.accessCount} + 1` })
-    .where(eq(links.slug, slug))
-    .returning({ accessCount: links.accessCount })
+    .update(schema.links)
+    .set({ accessCount: sql`${schema.links.accessCount} + 1` })
+    .where(eq(schema.links.slug, slug))
+    .returning({ accessCount: schema.links.accessCount })
 
   const row = updated[0]
 
@@ -1863,13 +1900,13 @@ prévio e fecha a janela de corrida entre as duas consultas.
 
 - [ ] **Step 4: Rodar e confirmar que passa**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/increment-link-visits.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/increment-link-visits.spec.ts`
 Expected: PASS — 5 testes
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add server/src/app/use-cases/increment-link-visits.ts server/src/app/use-cases/increment-link-visits.spec.ts
+git add server/src/app/functions/increment-link-visits.ts server/src/app/functions/increment-link-visits.spec.ts
 git commit -m "feat(server): add increment-link-visits use case"
 ```
 
@@ -1878,8 +1915,8 @@ git commit -m "feat(server): add increment-link-visits use case"
 ## Task 10: Use-case `delete-link`
 
 **Files:**
-- Create: `server/src/app/use-cases/delete-link.ts`
-- Test: `server/src/app/use-cases/delete-link.spec.ts`
+- Create: `server/src/app/functions/delete-link.ts`
+- Test: `server/src/app/functions/delete-link.spec.ts`
 
 **Interfaces:**
 - Consumes: `db`, `links`, `Either`, `slugSchema`, `LinkNotFound`.
@@ -1888,12 +1925,12 @@ git commit -m "feat(server): add increment-link-visits use case"
 
 - [ ] **Step 1: Escrever o teste**
 
-`server/src/app/use-cases/delete-link.spec.ts`:
+`server/src/app/functions/delete-link.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
 import { LinkNotFound } from '@/app/errors/link-not-found'
-import { isLeft, isRight, unwrapEither } from '@/shared/either'
+import { isLeft, isRight, unwrapEither } from '@/infra/shared/either'
 import { createLink } from './create-link'
 import { deleteLink } from './delete-link'
 import { getLinkBySlug } from './get-link-by-slug'
@@ -1940,21 +1977,21 @@ describe('deleteLink', () => {
 
 - [ ] **Step 2: Rodar e confirmar que falha**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/delete-link.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/delete-link.spec.ts`
 Expected: FAIL — `Failed to resolve import "./delete-link"`
 
 - [ ] **Step 3: Implementar**
 
-`server/src/app/use-cases/delete-link.ts`:
+`server/src/app/functions/delete-link.ts`:
 
 ```ts
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { LinkNotFound } from '@/app/errors/link-not-found'
 import { db } from '@/infra/db'
-import { links } from '@/infra/db/schema'
-import { type Either, makeLeft, makeRight } from '@/shared/either'
-import { slugSchema } from '@/shared/schemas'
+import { schema } from '@/infra/db/schemas'
+import { type Either, makeLeft, makeRight } from '@/infra/shared/either'
+import { slugSchema } from '@/infra/shared/schemas'
 
 const deleteLinkInput = z.object({ slug: slugSchema })
 
@@ -1966,9 +2003,9 @@ export async function deleteLink(
   const { slug } = deleteLinkInput.parse(input)
 
   const removed = await db
-    .delete(links)
-    .where(eq(links.slug, slug))
-    .returning({ id: links.id })
+    .delete(schema.links)
+    .where(eq(schema.links.slug, slug))
+    .returning({ id: schema.links.id })
 
   if (removed.length === 0) {
     return makeLeft(new LinkNotFound())
@@ -1982,13 +2019,13 @@ export async function deleteLink(
 
 - [ ] **Step 4: Rodar e confirmar que passa**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/delete-link.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/delete-link.spec.ts`
 Expected: PASS — 4 testes
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add server/src/app/use-cases/delete-link.ts server/src/app/use-cases/delete-link.spec.ts
+git add server/src/app/functions/delete-link.ts server/src/app/functions/delete-link.spec.ts
 git commit -m "feat(server): add delete-link use case"
 ```
 
@@ -1999,8 +2036,8 @@ git commit -m "feat(server): add delete-link use case"
 **Files:**
 - Create: `server/src/infra/storage/uploader.ts`, `client.ts`, `r2-uploader.ts`
 - Create: `server/src/test/in-memory-uploader.ts`
-- Create: `server/src/app/use-cases/export-links.ts`
-- Test: `server/src/app/use-cases/export-links.spec.ts`
+- Create: `server/src/app/functions/export-links.ts`
+- Test: `server/src/app/functions/export-links.spec.ts`
 
 **Interfaces:**
 - Consumes: `db`, `pg`, `links`, `Either`, `NoLinksToExport`, `env`.
@@ -2083,14 +2120,14 @@ do CSV — não apenas que a função foi chamada.
 
 - [ ] **Step 3: Escrever o teste da exportação**
 
-`server/src/app/use-cases/export-links.spec.ts`:
+`server/src/app/functions/export-links.spec.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
 import { NoLinksToExport } from '@/app/errors/no-links-to-export'
 import { db } from '@/infra/db'
-import { links } from '@/infra/db/schema'
-import { isLeft, isRight, unwrapEither } from '@/shared/either'
+import { schema } from '@/infra/db/schemas'
+import { isLeft, isRight, unwrapEither } from '@/infra/shared/either'
 import { createInMemoryUploader } from '@/test/in-memory-uploader'
 import { exportLinks } from './export-links'
 
@@ -2108,7 +2145,7 @@ describe('exportLinks', () => {
   })
 
   it('gera o CSV com o cabeçalho das quatro colunas exigidas', async () => {
-    await db.insert(links).values({
+    await db.insert(schema.links).values({
       originalUrl: 'https://example.com/a',
       slug: 'link-a',
     })
@@ -2124,7 +2161,7 @@ describe('exportLinks', () => {
   })
 
   it('monta a URL encurtada completa, não apenas o slug', async () => {
-    await db.insert(links).values({
+    await db.insert(schema.links).values({
       originalUrl: 'https://example.com/a',
       slug: 'link-a',
     })
@@ -2139,7 +2176,7 @@ describe('exportLinks', () => {
   })
 
   it('inclui todas as linhas', async () => {
-    await db.insert(links).values(
+    await db.insert(schema.links).values(
       Array.from({ length: 30 }, (_, i) => ({
         originalUrl: `https://example.com/${i}`,
         slug: `slug-${i}`,
@@ -2155,7 +2192,7 @@ describe('exportLinks', () => {
   })
 
   it('exporta a contagem de acessos', async () => {
-    await db.insert(links).values({
+    await db.insert(schema.links).values({
       originalUrl: 'https://example.com',
       slug: 'com-acessos',
       accessCount: 42,
@@ -2168,7 +2205,7 @@ describe('exportLinks', () => {
   })
 
   it('usa o prefixo exports/ e um nome único a cada chamada', async () => {
-    await db.insert(links).values({
+    await db.insert(schema.links).values({
       originalUrl: 'https://example.com',
       slug: 'unico',
     })
@@ -2186,7 +2223,7 @@ describe('exportLinks', () => {
   })
 
   it('devolve a reportUrl apontando para o objeto enviado', async () => {
-    await db.insert(links).values({
+    await db.insert(schema.links).values({
       originalUrl: 'https://example.com',
       slug: 'relatorio',
     })
@@ -2206,12 +2243,12 @@ só de data e hora faria duas exportações próximas sobrescreverem uma à outr
 
 - [ ] **Step 4: Rodar e confirmar que falha**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/export-links.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/export-links.spec.ts`
 Expected: FAIL — `Failed to resolve import "./export-links"`
 
 - [ ] **Step 5: Implementar a exportação**
 
-`server/src/app/use-cases/export-links.ts`:
+`server/src/app/functions/export-links.ts`:
 
 ```ts
 import { randomUUID } from 'node:crypto'
@@ -2222,9 +2259,9 @@ import { desc } from 'drizzle-orm'
 import { NoLinksToExport } from '@/app/errors/no-links-to-export'
 import { env } from '@/env'
 import { db, pg } from '@/infra/db'
-import { links } from '@/infra/db/schema'
+import { schema } from '@/infra/db/schemas'
 import type { Uploader } from '@/infra/storage/uploader'
-import { type Either, makeLeft, makeRight } from '@/shared/either'
+import { type Either, makeLeft, makeRight } from '@/infra/shared/either'
 
 export type ExportLinksInput = { uploader: Uploader }
 
@@ -2254,7 +2291,7 @@ const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
 export async function exportLinks({
   uploader,
 }: ExportLinksInput): Promise<Either<Error, ExportLinksOutput>> {
-  const [anyLink] = await db.select({ id: links.id }).from(links).limit(1)
+  const [anyLink] = await db.select({ id: schema.links.id }).from(schema.links).limit(1)
 
   if (!anyLink) {
     return makeLeft(new NoLinksToExport())
@@ -2262,13 +2299,13 @@ export async function exportLinks({
 
   const { sql, params } = db
     .select({
-      originalUrl: links.originalUrl,
-      slug: links.slug,
-      accessCount: links.accessCount,
-      createdAt: links.createdAt,
+      originalUrl: schema.links.originalUrl,
+      slug: schema.links.slug,
+      accessCount: schema.links.accessCount,
+      createdAt: schema.links.createdAt,
     })
-    .from(links)
-    .orderBy(desc(links.createdAt), desc(links.id))
+    .from(schema.links)
+    .orderBy(desc(schema.links.createdAt), desc(schema.links.id))
     .toSQL()
 
   // cursor real do Postgres: memória constante, snapshot consistente.
@@ -2321,7 +2358,7 @@ export async function exportLinks({
 
 - [ ] **Step 6: Rodar e confirmar que passa**
 
-Run: `cd server && pnpm exec vitest run src/app/use-cases/export-links.spec.ts`
+Run: `cd server && pnpm exec vitest run src/app/functions/export-links.spec.ts`
 Expected: PASS — 7 testes
 
 - [ ] **Step 7: Implementar o uploader real do R2**
@@ -2386,7 +2423,7 @@ Expected: PASS — todos os arquivos.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add server/src/infra/storage/ server/src/test/in-memory-uploader.ts server/src/app/use-cases/export-links.ts server/src/app/use-cases/export-links.spec.ts
+git add server/src/infra/storage/ server/src/test/in-memory-uploader.ts server/src/app/functions/export-links.ts server/src/app/functions/export-links.spec.ts
 git commit -m "feat(server): add R2 storage and export-links use case"
 ```
 
@@ -2595,8 +2632,8 @@ export const errorSchema = z.object({
 ```ts
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { createLink } from '@/app/use-cases/create-link'
-import { isLeft, unwrapEither } from '@/shared/either'
+import { createLink } from '@/app/functions/create-link'
+import { isLeft, unwrapEither } from '@/infra/shared/either'
 import { linkSchema, errorSchema } from '../schemas'
 
 export const createLinkRoute: FastifyPluginAsyncZod = async (app) => {
@@ -2902,8 +2939,8 @@ Expected: FAIL — 404 em todas as rotas ainda não registradas.
 ```ts
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { listLinks } from '@/app/use-cases/list-links'
-import { isLeft, unwrapEither } from '@/shared/either'
+import { listLinks } from '@/app/functions/list-links'
+import { isLeft, unwrapEither } from '@/infra/shared/either'
 import { errorSchema, linkSchema } from '../schemas'
 
 export const listLinksRoute: FastifyPluginAsyncZod = async (app) => {
@@ -2976,8 +3013,8 @@ export const listLinksRoute: FastifyPluginAsyncZod = async (app) => {
 ```ts
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { getLinkBySlug } from '@/app/use-cases/get-link-by-slug'
-import { isLeft, unwrapEither } from '@/shared/either'
+import { getLinkBySlug } from '@/app/functions/get-link-by-slug'
+import { isLeft, unwrapEither } from '@/infra/shared/either'
 import { errorSchema, linkSchema } from '../schemas'
 
 export const getLinkBySlugRoute: FastifyPluginAsyncZod = async (app) => {
@@ -3019,8 +3056,8 @@ export const getLinkBySlugRoute: FastifyPluginAsyncZod = async (app) => {
 ```ts
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { incrementLinkVisits } from '@/app/use-cases/increment-link-visits'
-import { isLeft, unwrapEither } from '@/shared/either'
+import { incrementLinkVisits } from '@/app/functions/increment-link-visits'
+import { isLeft, unwrapEither } from '@/infra/shared/either'
 import { errorSchema } from '../schemas'
 
 export const incrementLinkVisitsRoute: FastifyPluginAsyncZod = async (app) => {
@@ -3055,8 +3092,8 @@ export const incrementLinkVisitsRoute: FastifyPluginAsyncZod = async (app) => {
 ```ts
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { deleteLink } from '@/app/use-cases/delete-link'
-import { isLeft, unwrapEither } from '@/shared/either'
+import { deleteLink } from '@/app/functions/delete-link'
+import { isLeft, unwrapEither } from '@/infra/shared/either'
 import { errorSchema } from '../schemas'
 
 export const deleteLinkRoute: FastifyPluginAsyncZod = async (app) => {
@@ -3090,9 +3127,9 @@ export const deleteLinkRoute: FastifyPluginAsyncZod = async (app) => {
 ```ts
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { exportLinks } from '@/app/use-cases/export-links'
+import { exportLinks } from '@/app/functions/export-links'
 import { r2Uploader } from '@/infra/storage/r2-uploader'
-import { isLeft, unwrapEither } from '@/shared/either'
+import { isLeft, unwrapEither } from '@/infra/shared/either'
 import { errorSchema } from '../schemas'
 
 export const exportLinksRoute: FastifyPluginAsyncZod = async (app) => {
@@ -3219,7 +3256,7 @@ git commit -m "feat(server): add remaining routes and OpenAPI documentation"
 
 ```ts
 import { db, pg } from '@/infra/db'
-import { links } from '@/infra/db/schema'
+import { schema } from '@/infra/db/schemas'
 
 const TOTAL = 20_000
 const BATCH_SIZE = 5_000
@@ -3229,7 +3266,7 @@ async function seed() {
 
   const startedAt = Date.now()
 
-  await db.delete(links)
+  await db.delete(schema.links)
 
   for (let offset = 0; offset < TOTAL; offset += BATCH_SIZE) {
     const size = Math.min(BATCH_SIZE, TOTAL - offset)
@@ -3247,7 +3284,7 @@ async function seed() {
       }
     })
 
-    await db.insert(links).values(batch)
+    await db.insert(schema.links).values(batch)
 
     console.log(`  ${offset + size}/${TOTAL}`)
   }
@@ -3399,7 +3436,7 @@ Acrescentar a `docker-compose.yml`:
     env_file:
       - ./server/.env
     environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/brevly
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/brevly
     depends_on:
       postgres:
         condition: service_healthy
@@ -3416,7 +3453,7 @@ Acrescentar a `docker-compose.yml`:
     env_file:
       - ./server/.env
     environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/brevly
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/brevly
     depends_on:
       postgres:
         condition: service_healthy
@@ -3572,7 +3609,64 @@ cd server && pnpm format && pnpm lint
 
 Expected: sem erros. Corrigir o que aparecer.
 
-- [ ] **Step 3: Escrever o README**
+- [ ] **Step 3: Adicionar CI rodando os testes**
+
+`.github/workflows/tests.yml`:
+
+```yaml
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Server test suite
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: brevly_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter server test
+```
+
+O serviço já sobe com `POSTGRES_DB: brevly_test`, então o `init.sql` não é
+necessário aqui. O `pretest` aplica as migrations, e o `.env.test` versionado
+(Task 1) fornece a `DATABASE_URL` — é o que torna o workflow tão curto: nenhum
+segredo a configurar.
+
+Não é exigido pelo enunciado. Vale pelo que demonstra: a suíte roda numa
+máquina limpa, não só na sua.
+
+- [ ] **Step 4: Escrever o README**
 
 `README.md` na raiz:
 
@@ -3714,7 +3808,7 @@ curl -sO "$REPORT_URL"
 ```
 ````
 
-- [ ] **Step 4: Rodar a suíte completa uma última vez**
+- [ ] **Step 5: Rodar a suíte completa uma última vez**
 
 ```bash
 cd server && pnpm test && pnpm lint && pnpm build
@@ -3722,10 +3816,10 @@ cd server && pnpm test && pnpm lint && pnpm build
 
 Expected: testes passam, lint limpo, build gera `dist/`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add server/eslint.config.js README.md
+git add server/eslint.config.js .github/ README.md
 git commit -m "chore(server): add eslint config and project README"
 ```
 
