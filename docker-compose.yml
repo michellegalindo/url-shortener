@@ -19,5 +19,38 @@ services:
       timeout: 5s
       retries: 5
 
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: brevly-server
+    restart: unless-stopped
+    env_file:
+      - ./server/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/brevly
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '3333:3333'
+
+  migrate:
+    profiles: ['tools']
+    restart: 'no'
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      target: builder
+    container_name: brevly-migrate
+    env_file:
+      - ./server/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/brevly
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ['pnpm', '--filter', 'server', 'db:migrate']
+
 volumes:
   postgres_data:
