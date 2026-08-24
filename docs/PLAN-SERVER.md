@@ -3760,12 +3760,21 @@ API em `http://localhost:3333` · documentação em `http://localhost:3333/docs`
 
 ## Testes
 
-Os testes usam um banco separado (`brevly_test`), configurado em `.env.test`.
-
 ```bash
-docker compose exec postgres createdb -U postgres brevly_test
 cd server && pnpm test
 ```
+
+Os testes rodam contra um banco separado, `brevly_test`, criado
+automaticamente por `docker/init.sql` na primeira subida do Postgres. O
+`.env.test` é versionado — não contém segredo algum — então não há nada a
+configurar antes.
+
+O script `pretest` aplica as migrations no banco de teste automaticamente. Cada
+teste começa com a tabela vazia (`TRUNCATE` no `beforeEach`), o que permite
+verificar estados como "lista vazia" de forma confiável.
+
+Se o volume do Postgres já existir de antes e `brevly_test` não estiver lá,
+recrie-o: `docker compose down -v && docker compose up -d postgres`.
 
 ## API
 
