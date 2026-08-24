@@ -50,9 +50,11 @@ describe('exportLinks', () => {
     expect(body).toContain('https://example.com/a')
   })
 
-  it('inclui todas as linhas', async () => {
+  it('inclui todas as linhas mesmo em múltiplos lotes do cursor', async () => {
+    // o cursor do Postgres busca em lotes de 50: 120 linhas força três
+    // lotes, expondo uma regressão que processasse só o primeiro
     await db.insert(schema.links).values(
-      Array.from({ length: 30 }, (_, i) => ({
+      Array.from({ length: 120 }, (_, i) => ({
         originalUrl: `https://example.com/${i}`,
         slug: `slug-${i}`,
       }))
@@ -63,7 +65,19 @@ describe('exportLinks', () => {
 
     const rows = uploader.lastBody().trim().split('\n')
 
-    expect(rows).toHaveLength(31) // cabeçalho + 30 linhas
+    expect(rows).toHaveLength(121) // cabeçalho + 120 linhas
+  })
+
+  it('define o Content-Disposition como attachment', async () => {
+    await db.insert(schema.links).values({
+      originalUrl: 'https://example.com/a',
+      slug: 'link-attachment',
+    })
+
+    const uploader = createInMemoryUploader()
+    await exportLinks({ uploader })
+
+    expect(uploader.lastContentDisposition()).toBe('attachment')
   })
 
   it('exporta a contagem de acessos', async () => {

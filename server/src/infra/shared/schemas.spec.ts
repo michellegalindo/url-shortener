@@ -34,7 +34,21 @@ describe('originalUrlSchema', () => {
     )
   })
 
-  it.each(['nao-e-url', 'example.com', ''])('rejeita %s', invalid => {
+  it('aceita http://', () => {
+    expect(originalUrlSchema.parse('http://example.com/a')).toBe(
+      'http://example.com/a'
+    )
+  })
+
+  it.each([
+    'nao-e-url',
+    'example.com',
+    '',
+    'javascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'vbscript:msgbox(1)',
+    'file:///etc/passwd',
+  ])('rejeita %s', invalid => {
     expect(originalUrlSchema.safeParse(invalid).success).toBe(false)
   })
 })

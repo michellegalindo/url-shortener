@@ -41,4 +41,13 @@ describe('getLinkBySlug', () => {
 
     expect(unwrapEither(result)).toBeInstanceOf(LinkNotFound)
   })
+
+  it('devolve LinkNotFound (não ZodError) para slug malformado', async () => {
+    const result = await getLinkBySlug({ slug: 'ab' })
+
+    expect(isLeft(result)).toBe(true)
+    if (isRight(result)) return
+
+    expect(unwrapEither(result)).toBeInstanceOf(LinkNotFound)
+  })
 })

@@ -68,6 +68,9 @@ describe('createLink', () => {
     })
 
     expect(isLeft(result)).toBe(true)
+    if (isRight(result)) return
+
+    expect(unwrapEither(result)).toBeInstanceOf(SlugAlreadyExists)
   })
 
   it('rejeita slug reservado', async () => {

@@ -37,6 +37,7 @@ describe('GET /links', () => {
     const first = await app.inject({ method: 'GET', url: '/links?limit=2' })
 
     expect(first.json().links).toHaveLength(2)
+    expect(first.json().links[0]).not.toHaveProperty('id')
 
     const cursor = first.json().nextCursor
 
@@ -71,6 +72,12 @@ describe('GET /links/:slug', () => {
     expect(response.statusCode).toBe(404)
   })
 
+  it('responde 404 (não 400) para slug malformado', async () => {
+    const response = await app.inject({ method: 'GET', url: '/links/ab' })
+
+    expect(response.statusCode).toBe(404)
+  })
+
   it('não incrementa o contador de acessos', async () => {
     await create('semcontagem')
 
@@ -94,6 +101,8 @@ describe('PATCH /links/:slug/visits', () => {
     })
 
     expect(response.statusCode).toBe(204)
+    // o Fastify remove o corpo de toda resposta 204 incondicionalmente, então
+    // esta asserção garante o status, não uma ausência de corpo intencional
     expect(response.body).toBe('')
 
     const link = await app.inject({ method: 'GET', url: '/links/visitas' })
@@ -121,6 +130,8 @@ describe('DELETE /links/:slug', () => {
     })
 
     expect(response.statusCode).toBe(204)
+    // o Fastify remove o corpo de toda resposta 204 incondicionalmente, então
+    // esta asserção garante o status, não uma ausência de corpo intencional
     expect(response.body).toBe('')
 
     const link = await app.inject({ method: 'GET', url: '/links/apagar' })
@@ -132,6 +143,34 @@ describe('DELETE /links/:slug', () => {
     const response = await app.inject({ method: 'DELETE', url: '/links/nada' })
 
     expect(response.statusCode).toBe(404)
+  })
+})
+
+describe('CORS preflight', () => {
+  it('permite DELETE em /links/:slug', async () => {
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/links/qualquer',
+      headers: {
+        origin: 'http://localhost:5173',
+        'access-control-request-method': 'DELETE',
+      },
+    })
+
+    expect(response.headers['access-control-allow-methods']).toContain('DELETE')
+  })
+
+  it('permite PATCH em /links/:slug/visits', async () => {
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/links/qualquer/visits',
+      headers: {
+        origin: 'http://localhost:5173',
+        'access-control-request-method': 'PATCH',
+      },
+    })
+
+    expect(response.headers['access-control-allow-methods']).toContain('PATCH')
   })
 })
 

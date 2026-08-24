@@ -85,4 +85,26 @@ describe('POST /links', () => {
     expect(response.statusCode).toBe(400)
     expect(response.json().issues.length).toBeGreaterThanOrEqual(2)
   })
+
+  it('responde 400, não 500, para JSON malformado', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/links',
+      headers: { 'content-type': 'application/json' },
+      payload: '{"originalUrl":',
+    })
+
+    expect(response.statusCode).toBe(400)
+  })
+
+  it('responde 400 quando o corpo falha na validação do type provider (não no use-case)', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/links',
+      payload: { originalUrl: 123, slug: 'valido' },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(Array.isArray(response.json().issues)).toBe(true)
+  })
 })
