@@ -3,6 +3,7 @@ import type { Readable } from 'node:stream'
 export type UploadInput = {
   key: string
   contentType: string
+  contentDisposition: string
   body: Readable
 }
 

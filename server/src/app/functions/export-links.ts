@@ -97,6 +97,7 @@ export async function exportLinks({
   const uploadPromise = uploader.upload({
     key: `exports/${randomUUID()}-links.csv`,
     contentType: 'text/csv',
+    contentDisposition: 'attachment',
     body,
   })
 

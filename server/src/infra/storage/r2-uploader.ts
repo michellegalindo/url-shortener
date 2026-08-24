@@ -4,7 +4,7 @@ import { r2 } from './client'
 import type { Uploader } from './uploader'
 
 export const r2Uploader: Uploader = {
-  async upload({ key, contentType, body }) {
+  async upload({ key, contentType, contentDisposition, body }) {
     // Upload (multipart) e não PutObjectCommand: este exige Content-Length
     // conhecido de antemão, impossível com stream de tamanho desconhecido.
     // Cuidado: o buffer é partSize × queueSize — aumentar partSize multiplica
@@ -17,7 +17,7 @@ export const r2Uploader: Uploader = {
         Body: body,
         ContentType: contentType,
         // habilita o download no front sem bloqueio de popup (§5.4)
-        ContentDisposition: 'attachment',
+        ContentDisposition: contentDisposition,
       },
     })
 
