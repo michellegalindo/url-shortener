@@ -5,6 +5,8 @@ Fastify e interface React.
 
 - **Design e decisões técnicas:** [`docs/DESIGN.md`](./docs/DESIGN.md)
 - **Plano do servidor:** [`docs/PLAN-SERVER.md`](./docs/PLAN-SERVER.md)
+- **Decisões de execução do servidor:** [`docs/DECISIONS-SERVER.md`](./docs/DECISIONS-SERVER.md)
+  — onde o plano divergiu da realidade, e o que foi decidido
 
 ## Estrutura
 
