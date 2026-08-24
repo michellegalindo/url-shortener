@@ -324,16 +324,16 @@ server/
 ├── Dockerfile
 ├── .dockerignore
 ├── .env.example
-├── .env.test.example                   # DATABASE_URL do banco brevly_test
-├── vitest.config.ts                    # tsconfig-paths, globalSetup, sem paralelismo
+├── .env.test                           # versionado: sem segredos, aponta p/ brevly_test
+├── vitest.config.ts                    # tsconfig-paths, sem paralelismo entre arquivos
 └── src/
     ├── env.ts                          # Zod valida process.env no boot
     ├── test/
-    │   ├── global-setup.ts             # roda migrations no banco de teste
     │   ├── setup.ts                    # beforeEach: TRUNCATE links
+    │   ├── in-memory-uploader.ts
     │   └── factories/
     ├── app/
-    │   ├── use-cases/
+    │   ├── functions/
     │   │   ├── create-link.ts
     │   │   ├── list-links.ts
     │   │   ├── get-link-by-slug.ts
@@ -342,28 +342,41 @@ server/
     │   │   └── export-links.ts
     │   └── errors/
     │       ├── slug-already-exists.ts
+    │       ├── slug-is-reserved.ts
     │       ├── link-not-found.ts
     │       └── no-links-to-export.ts
     ├── infra/
     │   ├── db/
     │   │   ├── index.ts                # exporta db (drizzle) E pg (driver, p/ cursor)
-    │   │   ├── schema.ts               # tabela links
+    │   │   ├── schemas/
+    │   │   │   ├── index.ts            # barril: export const schema = { links }
+    │   │   │   └── links.ts
     │   │   └── migrations/
+    │   ├── shared/
+    │   │   ├── either.ts               # makeLeft, makeRight, isLeft, unwrapEither
+    │   │   ├── schemas.ts              # slugSchema, originalUrlSchema
+    │   │   ├── reserved-slugs.ts
+    │   │   └── cursor.ts               # encode/decodeCursor (keyset)
     │   ├── http/
-    │   │   ├── server.ts               # bootstrap Fastify
+    │   │   ├── app.ts                  # buildApp: plugins, erro, rotas
+    │   │   ├── server.ts               # bootstrap (listen)
+    │   │   ├── error-handler.ts
     │   │   └── routes/                 # uma rota por arquivo
     │   └── storage/
+    │       ├── uploader.ts             # interface Uploader
     │       ├── client.ts               # S3Client apontando para o R2
-    │       └── upload-file-to-storage.ts
-    ├── shared/
-    │   └── either.ts                   # makeLeft, makeRight, isLeft, unwrapEither
+    │       └── r2-uploader.ts
     └── scripts/
         └── seed.ts
 ```
 
-**Regra de dependência:** `app/` não importa nada de `infra/http/`. Use-cases
+**Regra de dependência:** `app/` não importa nada de `infra/http/`. As funções
 recebem o que precisam por parâmetro e retornam `Either`. Rotas traduzem
-`Either` → status HTTP. Isso é o que torna os use-cases testáveis sem servidor.
+`Either` → status HTTP. Isso é o que as torna testáveis sem subir servidor.
+
+A pasta se chama `functions/` por ser a convenção do projeto da aula em que o
+desafio se baseia; conceitualmente são use-cases, e este documento usa os dois
+termos como sinônimos.
 
 #### 4.4.1 Contrato do `Either` — restrição obrigatória
 
@@ -646,14 +659,20 @@ Todas validadas com Zod em `src/env.ts`, que falha no boot se algo faltar.
 | `db:studio` | `drizzle-kit studio` |
 | `db:seed` | `tsx src/scripts/seed.ts` |
 | `db:migrate:test` | `dotenv -e .env.test -- drizzle-kit migrate` |
+| **`pretest`** | `pnpm db:migrate:test` |
 | `test` | `dotenv -e .env.test -- vitest run` |
 | `test:watch` | `dotenv -e .env.test -- vitest` |
-| `lint` | `eslint src` |
-| `format` | `prettier --write src` |
+| `lint` | na **raiz**: `biome check .` |
+| `format` | na **raiz**: `biome check --write .` |
 
 O `db:migrate` sem sufixo aponta para o banco de desenvolvimento. A suíte de
 testes nunca deve migrar ou truncar o banco de dev — daí o par separado
 `db:migrate:test` / `test`, ambos carregando `.env.test`.
+
+O `pretest` é um hook do npm: roda automaticamente antes de `test`, aplicando as
+migrations no banco de teste. Preferido a um `globalSetup` do Vitest chamando
+`execSync`, que colocaria um processo filho no caminho de toda execução da
+suíte — inclusive a cada rerun no modo watch.
 
 O `db:seed` insere **20.000 links** em lotes de 5.000, com `created_at`
 escalonado. O volume é deliberado: o requisito de "listagem performática" só é

@@ -113,8 +113,13 @@ url-shortener/
             └── seed.ts
 ```
 
-**Responsabilidades:** `shared/` não importa de `app/` nem de `infra/`.
-`app/` não importa de `infra/http/`. Rotas traduzem `Either` → HTTP e nada mais.
+**Responsabilidades:** `infra/shared/` não importa de `app/` nem das demais
+pastas de `infra/`. `app/` não importa de `infra/http/`. Rotas traduzem
+`Either` → HTTP e nada mais.
+
+**Sobre o nome `functions/`:** é a convenção do projeto da aula
+(`ftr-pos-360-upload-widget-server`). Conceitualmente são use-cases — o texto
+deste plano usa os dois termos como sinônimos.
 
 ---
 
@@ -169,6 +174,8 @@ Dockerfile.
   "scripts": {
     "dev:server": "pnpm --filter server dev",
     "test:server": "pnpm --filter server test",
+    "lint": "biome check .",
+    "format": "biome check --write .",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:migrate": "docker compose --profile tools run --rm migrate"
@@ -197,9 +204,7 @@ Dockerfile.
     "pretest": "pnpm db:migrate:test",
     "test": "dotenv -e .env.test -- vitest run",
     "pretest:watch": "pnpm db:migrate:test",
-    "test:watch": "dotenv -e .env.test -- vitest",
-    "lint": "biome check src",
-    "format": "biome check --write src"
+    "test:watch": "dotenv -e .env.test -- vitest"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1096.0",
@@ -298,6 +303,11 @@ Instalar: `pnpm install`
 ```
 
 Instalar na raiz: `pnpm add -Dw @biomejs/biome`
+
+Os scripts `lint` e `format` ficam **só no `package.json` da raiz**, junto da
+config e da dependência. Declará-los nos pacotes filhos funcionaria por herança
+de `PATH`, mas seria uma dependência não declarada — passa na sua máquina e
+quebra numa instalação limpa.
 
 Um arquivo, um binário, os dois pacotes. Biome faz formatação **e** lint, o
 que dispensa o par ESLint + Prettier e, com ele, o `eslint-config-prettier` —
@@ -956,7 +966,7 @@ do `.regex()`, a maiúscula seria rejeitada antes de ser normalizada.
 
 - [ ] **Step 7: Rodar os dois arquivos e confirmar que passam**
 
-Run: `cd server && pnpm exec vitest run src/shared/`
+Run: `cd server && pnpm exec vitest run src/infra/shared/`
 Expected: PASS
 
 - [ ] **Step 8: Commit**
@@ -3615,7 +3625,7 @@ git commit -m "feat(server): add multi-stage Dockerfile and compose services"
 O `biome.json` da raiz já foi criado na Task 1 e cobre os dois pacotes.
 
 ```bash
-pnpm --filter server format && pnpm --filter server lint
+pnpm format && pnpm lint
 ```
 
 Corrigir o que aparecer. O `biome check --write` aplica formatação, ordena os
@@ -3669,6 +3679,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: pnpm --filter server test
 ```
 
@@ -3711,8 +3722,10 @@ Node 22+ · pnpm 11+ · Docker
 pnpm install
 
 cp server/.env.example server/.env
-cp server/.env.test.example server/.env.test
 ```
+
+O `server/.env.test` já vem versionado — não contém segredos e aponta para o
+banco local de teste, então `pnpm test` funciona sem configuração adicional.
 
 ### Variáveis de ambiente do servidor
 
@@ -3770,7 +3783,7 @@ API em `http://localhost:3333` · documentação em `http://localhost:3333/docs`
 | `pnpm db:migrate` | Aplica as migrations |
 | `pnpm db:seed` | Popula com 20.000 links de teste |
 | `pnpm test` | Suíte de testes |
-| `pnpm lint` | Biome (lint + formatação) |
+| `pnpm lint` (na raiz) | Biome — lint + formatação dos dois pacotes |
 
 ## Testes
 
@@ -3834,7 +3847,7 @@ curl -sO "$REPORT_URL"
 - [ ] **Step 4: Rodar a suíte completa uma última vez**
 
 ```bash
-cd server && pnpm test && pnpm lint && pnpm build
+pnpm lint && cd server && pnpm test && pnpm build
 ```
 
 Expected: testes passam, lint limpo, build gera `dist/`.

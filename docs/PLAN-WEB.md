@@ -174,9 +174,7 @@ build da imagem não encontra o manifesto no contexto copiado.
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
-    "lint": "biome check .",
-    "format": "biome check --write ."
+    "test": "vitest run"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
@@ -1153,7 +1151,7 @@ export const ROUTES = {
  * Caminhos estáticos que a aplicação ocupa, além da raiz.
  *
  * ⚠️ Toda entrada aqui precisa estar em RESERVED_SLUGS no servidor
- * (`server/src/shared/reserved-slugs.ts`) — senão um apelido com esse nome é
+ * (`server/src/infra/shared/reserved-slugs.ts`) — senão um apelido com esse nome é
  * criado com sucesso e fica permanentemente inalcançável.
  *
  * Hoje vazio: a tela de link não encontrado é renderizada DENTRO de `/:slug`,
@@ -2369,7 +2367,7 @@ listas de dependência que erradas causam bug silencioso.
 - [ ] **Step 2: Rodar lint e formatação**
 
 ```bash
-pnpm --filter web format && pnpm --filter web lint
+pnpm format && pnpm lint
 ```
 
 Corrigir o que aparecer.
@@ -2447,7 +2445,7 @@ Aplicação em `http://localhost:5173`.
 | `pnpm build` | Type-check e build de produção |
 | `pnpm preview` | Serve o build localmente |
 | `pnpm test` | Testes de lógica |
-| `pnpm lint` | Biome (lint + formatação) |
+| `pnpm lint` (na raiz) | Biome — lint + formatação dos dois pacotes |
 
 ### Publicação
 
@@ -2469,7 +2467,7 @@ exercita o rewrite.
 - [ ] **Step 7: Verificação final**
 
 ```bash
-cd web && pnpm test && pnpm lint && pnpm build && pnpm preview
+pnpm lint && cd web && pnpm test && pnpm build && pnpm preview
 ```
 
 Expected: testes passam, lint limpo, build gera `dist/`, e o preview funciona.
