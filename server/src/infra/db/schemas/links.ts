@@ -20,8 +20,8 @@ export const links = pgTable(
   },
   table => [
     index('links_created_at_id_idx').on(
-      table.createdAt.desc(),
-      table.id.desc()
+      table.createdAt.desc().nullsFirst(),
+      table.id.desc().nullsFirst()
     ),
   ]
 )

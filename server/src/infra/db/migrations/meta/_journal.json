@@ -8,6 +8,13 @@
       "when": 1787606911667,
       "tag": "0000_parched_tusk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787612222003,
+      "tag": "0001_glorious_supernaut",
+      "breakpoints": true
     }
   ]
 }
