@@ -32,6 +32,10 @@
     {
       "includes": ["server/src/scripts/**", "server/src/test/**"],
       "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+    },
+    {
+      "includes": ["web/src/assets/**", "web/public/**"],
+      "linter": { "enabled": false }
     }
   ]
 }

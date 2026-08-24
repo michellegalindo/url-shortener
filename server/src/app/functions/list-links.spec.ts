@@ -17,7 +17,7 @@ async function seed(
   await db.insert(schema.links).values(rows)
 }
 
-function unwrap<T>(result: Awaited<ReturnType<typeof listLinks>>) {
+function unwrap(result: Awaited<ReturnType<typeof listLinks>>) {
   if (isLeft(result)) throw new Error('esperava sucesso')
   return unwrapEither(result)
 }
