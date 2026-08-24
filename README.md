@@ -26,6 +26,14 @@ pnpm install
 cp server/.env.example server/.env
 ```
 
+As cinco chaves `CLOUDFLARE_*` do `.env.example` vêm vazias (`""`) de
+propósito — são as chaves do enunciado do desafio, e o repositório não pode
+carregar segredos. `server/src/env.ts` valida essas variáveis com `.min(1)` /
+`z.url()` e falha a inicialização do processo se alguma estiver vazia, então
+é preciso preencher as cinco com **algum** valor não vazio antes de subir o
+servidor — placeholders bastam para exercitar tudo exceto a exportação para o
+R2, que exige credenciais reais.
+
 O `server/.env.test` já vem versionado — não contém segredos e aponta para o
 banco local de teste, então `pnpm test` funciona sem configuração adicional.
 
@@ -149,3 +157,9 @@ scroll infinito, exibindo a lista inteira.
 REPORT_URL=$(curl -s -X POST http://localhost:3333/links/exports | jq -r .reportUrl)
 curl -sO "$REPORT_URL"
 ```
+
+O caminho de upload é verificado por testes automatizados contra um dublê em
+memória, que confere os bytes reais do CSV gerado (cabeçalho, colunas,
+contagem de linhas em múltiplos lotes do cursor). O round trip real contra o
+R2 exige credenciais que este repositório deliberadamente não carrega, então
+precisa ser verificado manualmente após configurar o bucket (seção acima).
