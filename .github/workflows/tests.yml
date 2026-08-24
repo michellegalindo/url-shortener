@@ -41,3 +41,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm --filter server test
+      - run: pnpm --filter server exec tsc --noEmit
+      - run: pnpm --filter server build
