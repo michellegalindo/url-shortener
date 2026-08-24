@@ -14,7 +14,17 @@ export type GetLinkBySlugInput = z.input<typeof getLinkBySlugInput>
 export async function getLinkBySlug(
   input: GetLinkBySlugInput
 ): Promise<Either<Error, LinkOutput>> {
-  const { slug } = getLinkBySlugInput.parse(input)
+  // safeParse, e não parse: ao contrário de delete/increment, este slug vem
+  // direto da URL digitada por um visitante, não de um link já listado pela
+  // aplicação — um formato inválido nunca pode existir, então é 404, não 400
+  // (§4.3, §5.3 — o front discrimina a tela de erro por status === 404)
+  const parsed = getLinkBySlugInput.safeParse(input)
+
+  if (!parsed.success) {
+    return makeLeft(new LinkNotFound())
+  }
+
+  const { slug } = parsed.data
 
   const [found] = await db
     .select({

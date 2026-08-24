@@ -37,6 +37,19 @@ export function registerErrorHandler(app: FastifyInstance) {
       return reply.status(status).send({ message: error.message })
     }
 
+    // erros 4xx do próprio Fastify (JSON malformado, Content-Type não
+    // suportado, etc.) chegam aqui com statusCode já definido: respeitá-lo
+    // evita reportar erro de cliente como 500 e poluir os logs (§4.3)
+    const frameworkStatus = (error as { statusCode?: number }).statusCode
+
+    if (
+      typeof frameworkStatus === 'number' &&
+      frameworkStatus >= 400 &&
+      frameworkStatus < 500
+    ) {
+      return reply.status(frameworkStatus).send({ message: error.message })
+    }
+
     // logger do Fastify, não console: sai estruturado e correlacionado
     // com a requisição (§4.8)
     request.log.error(error)

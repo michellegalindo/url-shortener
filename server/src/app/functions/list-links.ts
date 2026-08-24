@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, or } from 'drizzle-orm'
+import { desc, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/infra/db'
 import { schema } from '@/infra/db/schemas'
@@ -25,14 +25,11 @@ export async function listLinks(
 
   const anchor = cursor ? decodeCursor(cursor) : null
 
+  // comparação de row-value: vira um único Index Cond (start condition), em
+  // vez do OR/AND equivalente, que o planner só consegue aplicar como Filter
+  // pós-índice — varrendo e descartando toda linha anterior ao anchor (§4.3)
   const condition = anchor
-    ? or(
-        lt(schema.links.createdAt, anchor.createdAt),
-        and(
-          eq(schema.links.createdAt, anchor.createdAt),
-          lt(schema.links.id, anchor.id)
-        )
-      )
+    ? sql`(${schema.links.createdAt}, ${schema.links.id}) < (${anchor.createdAt.toISOString()}, ${anchor.id})`
     : undefined
 
   // busca uma linha a mais que o limite: a presença dela indica que existe
