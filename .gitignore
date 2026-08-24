@@ -5,9 +5,16 @@ dist
 .env
 .env.test
 
+# server/.env.test é versionado de propósito: sem segredos, aponta
+# para o banco local de teste, faz `pnpm test` funcionar após o clone
+!server/.env.test
+
 # artefatos do sistema operacional
 .DS_Store
 Thumbs.db
 
 # logs
 *.log
+
+# rascunho de execução agêntica
+.superpowers/

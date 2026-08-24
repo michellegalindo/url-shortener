@@ -1,0 +1,17 @@
+{
+  "name": "brev-ly",
+  "private": true,
+  "packageManager": "pnpm@11.0.5",
+  "scripts": {
+    "dev:server": "pnpm --filter server dev",
+    "test:server": "pnpm --filter server test",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:migrate": "docker compose --profile tools run --rm migrate"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10"
+  }
+}
