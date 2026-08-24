@@ -57,8 +57,6 @@ web/
 ├── tsconfig.json
 ├── vite.config.ts
 ├── vitest.config.ts
-├── eslint.config.js
-├── .prettierrc
 ├── .env.example
 ├── public/
 │   └── favicon.ico
@@ -131,7 +129,7 @@ que é onde a fidelidade ao Figma e a responsividade realmente se checam.
 **Files:**
 - Modify: `pnpm-workspace.yaml`, `server/Dockerfile`
 - Create: `web/package.json`, `web/tsconfig.json`, `web/vite.config.ts`,
-  `web/vitest.config.ts`, `web/.prettierrc`, `web/.env.example`
+  `web/vitest.config.ts`, `web/.env.example`
 - Create: `web/index.html`, `web/src/main.tsx`, `web/src/env.ts`
 - Create: `web/src/styles/globals.css`
 - Test: `web/src/env.spec.ts`
@@ -177,8 +175,8 @@ build da imagem não encontra o manifesto no contexto copiado.
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "lint": "eslint .",
-    "format": "prettier --write src"
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
@@ -197,8 +195,6 @@ build da imagem não encontra o manifesto no contexto copiado.
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "prettier": "^3.9.6",
-    "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.0",
     "vite": "^8.1.1",
@@ -265,17 +261,6 @@ export default defineConfig({
 O alias `@/` precisa das **duas** declarações — `paths` no tsconfig (compilador
 e editor) e `tsconfigPaths()` no Vite (build e testes). Só uma delas produz ou
 build quebrado ou erro vermelho no editor com build funcionando.
-
-`web/.prettierrc`:
-
-```json
-{
-  "semi": false,
-  "singleQuote": true,
-  "printWidth": 80,
-  "plugins": ["prettier-plugin-tailwindcss"]
-}
-```
 
 - [ ] **Step 4: Criar o `.env.example`**
 
@@ -2349,57 +2334,42 @@ git commit -m "feat(web): add redirect page distinguishing 404 from outage"
 ## Task 9: Responsividade, lint e README
 
 **Files:**
-- Create: `web/eslint.config.js`
-- Modify: `README.md`
+- Modify: `biome.json` (raiz), `README.md`
 - Ajustes de layout conforme necessário
 
 **Interfaces:**
 - Consumes: tudo.
 - Produces: `pnpm lint` limpo e instruções de execução do front.
 
-- [ ] **Step 1: Configurar o ESLint**
+- [ ] **Step 1: Ativar as regras de React no Biome**
 
-Instalar: `pnpm --filter web add -D eslint @eslint/js typescript-eslint eslint-config-prettier eslint-plugin-react-hooks eslint-plugin-react-refresh globals`
+O `biome.json` da raiz (criado na Task 1 do plano do servidor) já cobre este
+pacote. Acrescentar as regras específicas de React:
 
-`web/eslint.config.js`:
-
-```js
-import js from '@eslint/js'
-import prettier from 'eslint-config-prettier'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import globals from 'globals'
-import tseslint from 'typescript-eslint'
-
-export default tseslint.config(
-  { ignores: ['dist'] },
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-  reactHooks.configs['recommended-latest'],
-  prettier,
-  {
-    files: ['**/*.{ts,tsx}'],
-    languageOptions: { globals: globals.browser },
-    plugins: { 'react-refresh': reactRefresh },
-    rules: {
-      'react-refresh/only-export-components': 'warn',
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
-      ],
-      'no-console': 'error',
-    },
+```json
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": { "noConsole": "error" },
+      "correctness": {
+        "useExhaustiveDependencies": "error",
+        "useHookAtTopLevel": "error"
+      }
+    }
   }
-)
 ```
 
-`no-console` sem exceções no front: `console.log` de depuração esquecido em
-componente é o resíduo mais comum numa entrega.
+São os equivalentes do `eslint-plugin-react-hooks`:
+`useExhaustiveDependencies` cobre `exhaustive-deps` e `useHookAtTopLevel` cobre
+`rules-of-hooks`. A primeira é a que importa mais aqui — o
+`IntersectionObserver` da Task 6 e o efeito de redirecionamento da Task 8 têm
+listas de dependência que erradas causam bug silencioso.
 
 - [ ] **Step 2: Rodar lint e formatação**
 
 ```bash
-cd web && pnpm format && pnpm lint
+pnpm --filter web format && pnpm --filter web lint
 ```
 
 Corrigir o que aparecer.
@@ -2477,7 +2447,7 @@ Aplicação em `http://localhost:5173`.
 | `pnpm build` | Type-check e build de produção |
 | `pnpm preview` | Serve o build localmente |
 | `pnpm test` | Testes de lógica |
-| `pnpm lint` | ESLint |
+| `pnpm lint` | Biome (lint + formatação) |
 
 ### Publicação
 
@@ -2510,8 +2480,8 @@ comportamento que depende do rewrite em produção.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add web/eslint.config.js README.md web/src/
-git commit -m "chore(web): add eslint config, responsive polish and README"
+git add biome.json README.md web/src/
+git commit -m "chore(web): add react lint rules, responsive polish and README"
 ```
 
 ---

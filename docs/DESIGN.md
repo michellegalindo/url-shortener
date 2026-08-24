@@ -54,6 +54,7 @@ Um script `db:seed` existe adicionalmente, por conveniência, sem ser exigido.
 | D16 | Topologia de publicação | **Front e API em origens separadas**, sem proxy reverso; execução local via `docker-compose` | O enunciado exige o repositório, não deploy público. Front em `:5173`, API em `:3333`. Define a blocklist de slugs reservados (§4.3.1) e mantém o Dockerfile do web fora de escopo. |
 | D17 | Tela de erro do redirect | **Renderizada dentro de `/:slug`**, sem rota `/not-found` | Uma rota estática venceria `/:slug` na resolução, tornando o apelido `not-found` inalcançável — é o bug que as duas referências têm. Renderizar no lugar também preserva o apelido na URL, permitindo que um F5 refaça a consulta. Ver §5.3. |
 | D18 | Erro de rede no redirect | **Tela distinta do 404**, com "Tentar novamente" | Tratar toda falha como "link não encontrado" informa ao usuário que um link válido não existe. Ver §5.3. |
+| D19 | Lint e formatação | **Biome**, num `biome.json` único na raiz | Substitui ESLint + Prettier: 15 devDependencies viram 1 e 4 arquivos de config viram 1, num monorepo com dois pacotes. Também elimina o `eslint-config-prettier`, pacote que existe só para as duas ferramentas não brigarem. Custo: sem equivalente maduro ao `prettier-plugin-tailwindcss`, então a ordem das classes utilitárias fica manual. |
 
 ### Ambiente verificado
 
@@ -90,7 +91,7 @@ Obrigatória: TypeScript, Fastify, Drizzle ORM, PostgreSQL.
 
 Complementar: Zod 4, `fastify-type-provider-zod`, `@fastify/cors`,
 `@aws-sdk/client-s3`, `@aws-sdk/lib-storage`, `csv-stringify`, `postgres`,
-`drizzle-kit`, `tsx`, ESLint, Prettier.
+`drizzle-kit`, `tsx`, Biome (lint + formatação).
 
 Testes: Vitest, `vite-tsconfig-paths` (aliases `@/` na suíte), `dotenv-cli`
 (carrega `.env.test`), `@faker-js/faker` (factories).
@@ -768,7 +769,8 @@ usam um duplo em memória e não dependem de credenciais do R2.
 Obrigatória: TypeScript, React, Vite (SPA, sem framework).
 
 Complementar: TailwindCSS v4, React Router v7, TanStack Query, React Hook Form,
-Zod, `@phosphor-icons/react`, `sonner`, `tailwind-variants`, ESLint, Prettier.
+Zod, `@phosphor-icons/react`, `sonner`, `tailwind-variants`. Lint e formatação
+pelo Biome, num `biome.json` único na raiz do monorepo.
 
 `tailwind-variants` reexporta `cn`, então `clsx` e `tailwind-merge` não entram
 como dependências diretas.
@@ -1346,6 +1348,7 @@ abaixo são deliberadas, e estão registradas para que se leiam como decisão.
 
 | Ponto | Projeto da aula | Aqui | Por quê |
 |---|---|---|---|
+| **Lint/format** | Biome no server; o web tem deps de ESLint mas **nenhuma config** | Biome nos dois, num `biome.json` na raiz | Alinhado. O web da aula ficou com o lint do template Vite sem configurar — não é escolha a copiar. |
 | **Paginação** | `offset`/`pageSize` + `count()` → `{ items, total }` | keyset `(created_at, id)` → `{ links, nextCursor }` | O widget da aula não cria itens na mesma tela da lista; a nossa home cria. Com offset, cada inserção desloca as linhas e a próxima página repete ou pula itens (D11). |
 | **Download do CSV** | `fetch` → `blob()` → `<a download>` | `location.assign` com `Content-Disposition: attachment` | Não carrega o arquivo em memória e dispensa configurar CORS no bucket, que o `mode: 'cors'` da aula exige. |
 | **Isolamento de testes** | nenhum; dados aleatórios por teste | `TRUNCATE` por teste, sem paralelismo | Sem limpeza, testes de estado vazio passam na primeira execução e falham em todas as seguintes (D10). |

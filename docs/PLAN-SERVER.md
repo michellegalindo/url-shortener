@@ -51,14 +51,13 @@ Valores copiados literalmente do spec. Valem para **todas** as tarefas.
 url-shortener/
 ├── package.json                    # raiz, privado, scripts orquestradores
 ├── pnpm-workspace.yaml
+├── biome.json                      # lint + format, cobre server e web
 ├── docker-compose.yml
 └── server/
     ├── package.json
     ├── tsconfig.json
     ├── drizzle.config.ts
     ├── vitest.config.ts
-    ├── eslint.config.js
-    ├── .prettierrc
     ├── .env.example
     ├── .env.test                       # versionado: sem segredos, aponta p/ brevly_test
     ├── .dockerignore
@@ -132,7 +131,7 @@ mapeamento de `Either` → status HTTP e a serialização das respostas.
 
 **Files:**
 - Create: `package.json`, `pnpm-workspace.yaml`
-- Create: `server/package.json`, `server/tsconfig.json`, `server/.prettierrc`
+- Create: `server/package.json`, `server/tsconfig.json`, `biome.json`
 - Create: `server/.env.example`, `server/.env.test`
 - Create: `server/src/env.ts`
 - Test: `server/src/env.spec.ts`
@@ -199,8 +198,8 @@ Dockerfile.
     "test": "dotenv -e .env.test -- vitest run",
     "pretest:watch": "pnpm db:migrate:test",
     "test:watch": "dotenv -e .env.test -- vitest",
-    "lint": "eslint src",
-    "format": "prettier --write src"
+    "lint": "biome check src",
+    "format": "biome check --write src"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1096.0",
@@ -220,7 +219,6 @@ Dockerfile.
     "@types/node": "^24.13.3",
     "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.31.10",
-    "prettier": "^3.9.6",
     "tsx": "^4.23.1",
     "typescript": "^5.9.0",
     "vite-tsconfig-paths": "^6.1.1",
@@ -257,11 +255,61 @@ Instalar: `pnpm install`
 }
 ```
 
-`server/.prettierrc`:
+`biome.json` — **na raiz do monorepo**, cobrindo `server` e `web`:
 
 ```json
-{ "semi": false, "singleQuote": true, "printWidth": 80 }
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.8/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": { "ignoreUnknown": false },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 80
+  },
+  "assist": {
+    "enabled": true,
+    "actions": { "source": { "organizeImports": "on" } }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": { "noConsole": "error" }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded",
+      "arrowParentheses": "asNeeded",
+      "jsxQuoteStyle": "double",
+      "trailingCommas": "es5"
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["server/src/scripts/**", "server/src/test/**"],
+      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+    }
+  ]
+}
 ```
+
+Instalar na raiz: `pnpm add -Dw @biomejs/biome`
+
+Um arquivo, um binário, os dois pacotes. Biome faz formatação **e** lint, o
+que dispensa o par ESLint + Prettier e, com ele, o `eslint-config-prettier` —
+pacote cuja única função é desligar as regras de estilo do ESLint para que não
+briguem com o Prettier.
+
+`useIgnoreFile: true` reaproveita o `.gitignore`, evitando manter uma segunda
+lista de exclusões.
+
+O `noConsole` fica desligado nos scripts e no harness de teste, onde imprimir no
+terminal é o propósito — e ligado no resto, onde `console.log` esquecido é o
+resíduo mais comum numa entrega.
 
 - [ ] **Step 4: Criar os arquivos de exemplo de ambiente**
 
@@ -3555,61 +3603,27 @@ git commit -m "feat(server): add multi-stage Dockerfile and compose services"
 ## Task 16: Lint, formatação e README
 
 **Files:**
-- Create: `server/eslint.config.js`
 - Create: `README.md` (substitui o atual)
+- Create: `.github/workflows/tests.yml`
 
 **Interfaces:**
 - Consumes: tudo.
 - Produces: `pnpm lint` limpo e instruções de execução.
 
-- [ ] **Step 1: Configurar o ESLint**
+- [ ] **Step 1: Rodar lint e formatação**
 
-Instalar: `pnpm --filter server add -D eslint @eslint/js typescript-eslint eslint-config-prettier eslint-plugin-simple-import-sort`
-
-`server/eslint.config.js`:
-
-```js
-import js from '@eslint/js'
-import prettier from 'eslint-config-prettier'
-import simpleImportSort from 'eslint-plugin-simple-import-sort'
-import tseslint from 'typescript-eslint'
-
-export default tseslint.config(
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-  prettier,
-  {
-    plugins: { 'simple-import-sort': simpleImportSort },
-    rules: {
-      'simple-import-sort/imports': 'error',
-      'simple-import-sort/exports': 'error',
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
-      ],
-      'no-console': ['error', { allow: ['warn', 'error'] }],
-    },
-  },
-  {
-    files: ['src/scripts/**', 'src/test/**'],
-    rules: { 'no-console': 'off' },
-  }
-)
-```
-
-`no-console` é liberado nos scripts e no harness de teste, onde imprimir no
-terminal é o propósito — e proibido no resto, onde `console.log` esquecido é o
-resíduo mais comum numa entrega.
-
-- [ ] **Step 2: Rodar lint e formatação**
+O `biome.json` da raiz já foi criado na Task 1 e cobre os dois pacotes.
 
 ```bash
-cd server && pnpm format && pnpm lint
+pnpm --filter server format && pnpm --filter server lint
 ```
+
+Corrigir o que aparecer. O `biome check --write` aplica formatação, ordena os
+imports e corrige o que for auto-corrigível numa passada só.
 
 Expected: sem erros. Corrigir o que aparecer.
 
-- [ ] **Step 3: Adicionar CI rodando os testes**
+- [ ] **Step 2: Adicionar CI rodando os testes**
 
 `.github/workflows/tests.yml`:
 
@@ -3666,7 +3680,7 @@ segredo a configurar.
 Não é exigido pelo enunciado. Vale pelo que demonstra: a suíte roda numa
 máquina limpa, não só na sua.
 
-- [ ] **Step 4: Escrever o README**
+- [ ] **Step 3: Escrever o README**
 
 `README.md` na raiz:
 
@@ -3756,7 +3770,7 @@ API em `http://localhost:3333` · documentação em `http://localhost:3333/docs`
 | `pnpm db:migrate` | Aplica as migrations |
 | `pnpm db:seed` | Popula com 20.000 links de teste |
 | `pnpm test` | Suíte de testes |
-| `pnpm lint` | ESLint |
+| `pnpm lint` | Biome (lint + formatação) |
 
 ## Testes
 
@@ -3817,7 +3831,7 @@ curl -sO "$REPORT_URL"
 ```
 ````
 
-- [ ] **Step 5: Rodar a suíte completa uma última vez**
+- [ ] **Step 4: Rodar a suíte completa uma última vez**
 
 ```bash
 cd server && pnpm test && pnpm lint && pnpm build
@@ -3825,11 +3839,11 @@ cd server && pnpm test && pnpm lint && pnpm build
 
 Expected: testes passam, lint limpo, build gera `dist/`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add server/eslint.config.js .github/ README.md
-git commit -m "chore(server): add eslint config and project README"
+git add .github/ README.md
+git commit -m "chore(server): add CI workflow and project README"
 ```
 
 ---
