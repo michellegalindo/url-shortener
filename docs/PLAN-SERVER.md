@@ -591,7 +591,6 @@ export const schema = { links }
 
 O barril é o idioma do projeto da aula: o código lê `schema.links`, e novas
 tabelas entram sem alterar nenhum import existente.
-```
 
 O índice é composto e na mesma ordem do `ORDER BY` da paginação keyset
 (`created_at DESC, id DESC`), para o Postgres percorrer sem ordenar (§4.2).
