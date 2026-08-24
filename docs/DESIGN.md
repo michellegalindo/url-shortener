@@ -52,6 +52,8 @@ Um script `db:seed` existe adicionalmente, por conveniência, sem ser exigido.
 | D14 | Navegação no redirect | **`window.location.replace`**, não `href` | `href` empilha a página de redirect no histórico: o botão Voltar retorna a ela, que redireciona de novo, prendendo o usuário. Ver §5.3. |
 | D15 | Retenção dos CSVs no R2 | **Lifecycle rule de 7 dias** sobre o prefixo `exports/` | Cada exportação cria um objeto novo e nada apaga: o armazenamento cresceria de forma monotônica para sempre. Regra no bucket em vez de job na aplicação — não há código para manter nem para falhar em silêncio. Também limita a janela de exposição dos arquivos públicos. Ver §4.5.1. |
 | D16 | Topologia de publicação | **Front e API em origens separadas**, sem proxy reverso; execução local via `docker-compose` | O enunciado exige o repositório, não deploy público. Front em `:5173`, API em `:3333`. Define a blocklist de slugs reservados (§4.3.1) e mantém o Dockerfile do web fora de escopo. |
+| D17 | Tela de erro do redirect | **Renderizada dentro de `/:slug`**, sem rota `/not-found` | Uma rota estática venceria `/:slug` na resolução, tornando o apelido `not-found` inalcançável — é o bug que as duas referências têm. Renderizar no lugar também preserva o apelido na URL, permitindo que um F5 refaça a consulta. Ver §5.3. |
+| D18 | Erro de rede no redirect | **Tela distinta do 404**, com "Tentar novamente" | Tratar toda falha como "link não encontrado" informa ao usuário que um link válido não existe. Ver §5.3. |
 
 ### Ambiente verificado
 
@@ -1058,8 +1060,75 @@ esperado.
 | Rota | Comportamento |
 |---|---|
 | `/` | Card de cadastro + card "Meus links": lista paginada com scroll infinito, empty state, skeleton na carga, botão de download do CSV. |
-| `/:slug` | `GET /links/:slug` → `PATCH /links/:slug/visits` com `keepalive` → redireciona via `window.location.href`. Em `404`, renderiza a tela de link não encontrado. |
-| `*` | Página 404 genérica. |
+| `/:slug` | `GET /links/:slug` → `PATCH /links/:slug/visits` com `keepalive` → redireciona via `window.location.replace`. Em `404`, renderiza a tela de link não encontrado **sem navegar**. |
+| `*` | Página "Página não encontrada". |
+
+São **três rotas**, e nenhuma delas é estática além da raiz. Isso é o que mantém
+a blocklist de slugs reservados reduzida a `assets` (§4.3.1).
+
+#### A tela de erro é renderizada no lugar, não é uma rota
+
+O padrão usual — e o das duas implementações de referência — é ter uma rota
+estática `/not-found` e navegar até ela quando a API devolve 404. Não fazemos
+isso, por duas razões:
+
+1. **A rota estática cria a colisão de namespace.** `/not-found` venceria
+   `/:slug` na resolução do roteador, tornando o apelido `not-found`
+   permanentemente inalcançável — e exigindo reservá-lo no servidor.
+2. **Navegar descarta a informação do erro.** Indo para `/not-found`, a URL
+   deixa de mostrar qual apelido falhou; recarregar a página não tenta de novo.
+   Renderizando no lugar, a URL continua sendo `/meu-link` e um F5 refaz a
+   consulta — o que importa quando a falha foi transitória.
+
+A tela exibida é a mesma do Figma; o que muda é não haver navegação.
+
+#### Discriminar 404 de falha de transporte
+
+Nem toda falha da consulta significa "link inexistente":
+
+| Situação | Tela |
+|---|---|
+| `404` da API | "Link não encontrado" — o apelido não existe, foi removido ou é inválido |
+| Erro de rede, `5xx`, timeout | "Não foi possível carregar o link", com botão **Tentar novamente** |
+
+Tratar as duas como 404 — como as duas referências fazem — informa ao usuário
+que um link **válido** não existe, e o leva a desistir dele. A distinção sai do
+status da resposta:
+
+```ts
+const isNotFound = error instanceof ApiError && error.status === 404
+```
+
+`retry: false` na query de resolução: repetir automaticamente um 404 é inútil, e
+atrasa a exibição da mensagem correta.
+
+#### Duas telas de erro distintas, não uma
+
+| Rota | Título | Quando |
+|---|---|---|
+| `/:slug` (404 da API) | **Link não encontrado** | o apelido não existe |
+| `*` | **Página não encontrada** | o caminho não corresponde a rota nenhuma |
+
+Reaproveitar um componente só para os dois casos faz `/caminho/errado` exibir
+uma mensagem sobre links — texto errado para a situação. Os dois estados são
+semanticamente diferentes e têm telas próprias no Figma.
+
+#### Tabela de rotas como fonte única
+
+As rotas são declaradas num objeto exportado, não espalhadas em strings:
+
+```ts
+export const ROUTES = {
+  home: '/',
+  redirect: '/:slug',
+  notFound: '*',
+} as const
+```
+
+É daqui que sai a lista de caminhos estáticos usada para conferir a blocklist do
+servidor (§4.3.1). Sem uma fonte única, as duas listas divergem em silêncio — foi
+exatamente o que aconteceu na primeira redação deste documento, em que a
+blocklist foi copiada de uma referência com tabela de rotas diferente.
 
 #### Lista com scroll infinito
 
