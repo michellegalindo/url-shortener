@@ -1,1 +1,13 @@
 node_modules
+dist
+
+# variáveis de ambiente locais — os .example ficam versionados
+.env
+.env.test
+
+# artefatos do sistema operacional
+.DS_Store
+Thumbs.db
+
+# logs
+*.log

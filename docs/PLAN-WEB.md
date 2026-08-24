@@ -61,7 +61,7 @@ web/
 ├── .prettierrc
 ├── .env.example
 ├── public/
-│   └── favicon.svg
+│   └── favicon.ico
 └── src/
     ├── main.tsx
     ├── env.ts
@@ -458,7 +458,7 @@ export const env = parseEnv(import.meta.env)
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -474,7 +474,7 @@ export const env = parseEnv(import.meta.env)
 </html>
 ```
 
-`href="/favicon.svg"` é absoluto, não `./favicon.svg`: o mesmo `index.html` é
+`href="/favicon.ico"` é absoluto, não `./favicon.ico`: o mesmo `index.html` é
 servido em qualquer rota, e um caminho relativo se resolveria contra a rota
 atual (§5.2.1).
 
@@ -527,7 +527,7 @@ git commit -m "feat(web): scaffold vite app with style guide tokens"
 ## Task 2: Assets e cliente HTTP
 
 **Files:**
-- Create: `web/public/favicon.svg`
+- Create: `web/public/favicon.ico`
 - Create: `web/src/assets/logo.svg`, `logo-icon.svg`, `404.svg`
 - Create: `web/src/lib/api.ts`, `web/src/lib/build-short-url.ts`,
   `web/src/lib/format-date.ts`, `web/src/lib/cn.ts`
@@ -555,12 +555,15 @@ Exportar do Figma (aba Style Guide) para `web/src/assets/`:
 - `logo-icon.svg` — símbolo isolado, usado na tela de redirect
 - `404.svg` — ilustração das telas de erro
 
-E `web/public/favicon.svg`, baseado no **símbolo**, nunca no logotipo com texto:
-uma marca horizontal renderizada em 16×16px vira um borrão ilegível (§5.2.1).
+E `web/public/favicon.ico`, baseado no **símbolo**, nunca no logotipo com
+texto: uma marca horizontal renderizada em 16×16px vira um borrão ilegível
+(§5.2.1). Um ICO multi-resolução (16×16 e 32×32 embutidos) é preferível a um
+SVG aqui — traz o desenho já ajustado para cada tamanho, em vez de depender do
+navegador reduzir vetor até 16px.
 
 ⚠️ Cada arquivo existe em **um** lugar só. Não duplicar `logo-icon.svg` em
 `public/` — o componente importa de `src/assets/`, o `index.html` usa
-`/favicon.svg`, e são propósitos distintos.
+`/favicon.ico`, e são propósitos distintos.
 
 - [ ] **Step 2: Escrever os testes de `lib`**
 

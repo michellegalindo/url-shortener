@@ -870,9 +870,9 @@ Sans. Se forem idênticos, nenhuma das duas carregou.
 
 ```
 web/
-├── index.html              # referencia /favicon.svg por caminho absoluto
+├── index.html              # referencia /favicon.ico por caminho absoluto
 ├── public/                 # servido verbatim, sem hash (§5.2.1)
-│   └── favicon.svg
+│   └── favicon.ico
 └── src/
 ├── app/
 │   ├── router.tsx
@@ -907,7 +907,7 @@ web/
 
 | | `src/assets/` | `public/` |
 |---|---|---|
-| Como é referenciado | `import logo from '@/assets/logo.svg'` | caminho absoluto `/favicon.svg` |
+| Como é referenciado | `import logo from '@/assets/logo.svg'` | caminho absoluto `/favicon.ico` |
 | Nome no build | com hash de conteúdo (`logo-a3f2b1.svg`) | preservado, sem hash |
 | Cache | invalidação automática ao mudar o arquivo | manual — o navegador pode servir a versão antiga |
 | Arquivo pequeno | inline como data URI abaixo de 4 KB, economizando uma requisição | sempre uma requisição |
@@ -915,7 +915,7 @@ web/
 
 **Padrão: `src/assets/`.** Só vai para `public/` o que precisa de URL estável e
 previsível, que o bundler não pode reescrever — na prática, apenas o
-`favicon.svg`, porque o `index.html` o referencia por caminho fixo.
+`favicon.ico`, porque o `index.html` o referencia por caminho fixo.
 
 `★` O hash de conteúdo não é detalhe de otimização: é o que permite servir o
 asset com cache longo. Sem ele, trocar o logo mantém o nome do arquivo e
@@ -928,7 +928,7 @@ navegadores continuam exibindo o antigo até o cache expirar.
 | `logo.svg` | `src/assets/` | marca completa, cabeçalho da home |
 | `logo-icon.svg` | `src/assets/` | símbolo isolado, tela de redirect |
 | `404.svg` | `src/assets/` | ilustração de `link-not-found` e `not-found` |
-| `favicon.svg` | `public/` | ícone da aba |
+| `favicon.ico` | `public/` | ícone da aba (ICO multi-resolução: 16×16 e 32×32) |
 
 `404.svg` é importado pelas duas páginas de erro. Como é o mesmo módulo, o build
 gera **um único arquivo** — não há duplicação a evitar aqui.
@@ -949,16 +949,16 @@ componente não.
 
 #### O favicon é o símbolo, não a marca completa
 
-`favicon.svg` usa `logo-icon.svg` como base, nunca o logotipo com texto. Um
+`favicon.ico` usa `logo-icon.svg` como base, nunca o logotipo com texto. Um
 logotipo horizontal renderizado em 16×16px vira um borrão ilegível.
 
 #### `index.html` referencia com caminho absoluto
 
 ```html
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 ```
 
-Absoluto (`/favicon.svg`), não relativo (`./favicon.svg`). Como o mesmo
+Absoluto (`/favicon.ico`), não relativo (`./favicon.ico`). Como o mesmo
 `index.html` é servido em qualquer rota pelo rewrite da SPA (§5.6), um caminho
 relativo se resolve contra a rota atual — em `/meu-link` ainda funciona por
 acaso, mas qualquer rota de mais de um segmento passaria a procurar o arquivo no
