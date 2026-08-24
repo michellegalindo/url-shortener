@@ -26,7 +26,10 @@ export async function buildApp() {
 
   const origins = env.FRONTEND_URL.split(',').map(o => o.trim())
 
-  await app.register(cors, { origin: origins })
+  await app.register(cors, {
+    origin: origins,
+    methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE'],
+  })
 
   await app.register(fastifySwagger, {
     openapi: {

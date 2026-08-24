@@ -14,4 +14,7 @@ export const slugSchema = z
       )
   )
 
-export const originalUrlSchema = z.url({ error: 'Informe uma URL válida' })
+export const originalUrlSchema = z.url({
+  protocol: /^https?$/,
+  error: 'Informe uma URL válida',
+})
