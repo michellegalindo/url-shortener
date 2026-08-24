@@ -2905,10 +2905,30 @@ export const listLinksRoute: FastifyPluginAsyncZod = async (app) => {
     {
       schema: {
         summary: 'Lista os links, do mais recente para o mais antigo',
+        description: [
+          'Retorna **todos** os links cadastrados, percorridos por páginas.',
+          '',
+          'Chame sem parâmetros para obter a primeira página. Enquanto',
+          '`nextCursor` não for `null`, repita a chamada passando esse valor',
+          'em `cursor` para receber a página seguinte — a concatenação das',
+          'páginas é a lista completa.',
+          '',
+          'A paginação é por âncora (keyset), não por deslocamento: criar ou',
+          'remover links durante a navegação não duplica nem esconde itens.',
+        ].join('\n'),
         tags: ['links'],
         querystring: z.object({
-          cursor: z.string().optional(),
-          limit: z.coerce.number().int().min(1).max(100).optional(),
+          cursor: z
+            .string()
+            .optional()
+            .describe('Cursor da página anterior. Omitir para a primeira.'),
+          limit: z.coerce
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .describe('Itens por página. Padrão 20, máximo 100.'),
         }),
         response: {
           200: z.object({
@@ -3433,7 +3453,53 @@ curl -s http://localhost:3333/links/docker-ok | jq
 Expected: o link continua existindo. Se voltar 404, o volume está montado no
 caminho errado (§7) — conferir se é `/var/lib/postgresql/data`.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 9: Verificar que o CSV é acessível pela CDN**
+
+⚠️ **Requer credenciais reais do R2 em `server/.env`.** Este é o único passo do
+plano que exige o bucket criado, e é o que fecha o requisito "acessar o CSV por
+meio de uma CDN" — os testes automatizados usam duplo em memória e provam o
+conteúdo do arquivo, não a sua publicação.
+
+```bash
+# gera o relatório e captura a URL retornada
+REPORT_URL=$(curl -s -X POST http://localhost:3333/links/exports | jq -r .reportUrl)
+echo "$REPORT_URL"
+
+# baixa o arquivo direto da CDN, sem passar pela API
+curl -sS -D - -o /tmp/relatorio.csv "$REPORT_URL" | head -n 12
+
+head -n 3 /tmp/relatorio.csv
+```
+
+Expected:
+- `HTTP/2 200`
+- `content-type: text/csv`
+- `content-disposition: attachment`
+- primeira linha do arquivo:
+  `URL original,URL encurtada,Contagem de acessos,Data de criação`
+- as linhas seguintes com a URL encurtada completa
+  (`http://localhost:5173/...`), não apenas o slug
+
+**Diagnóstico se falhar:**
+
+| Sintoma | Causa provável |
+|---|---|
+| `403` ou `401` ao baixar | domínio público do bucket não habilitado |
+| `404` ao baixar | `CLOUDFLARE_PUBLIC_URL` aponta para outro bucket, ou tem barra final duplicada |
+| erro no `POST` | token do R2 sem permissão de escrita |
+| `422` no `POST` | não há links cadastrados — criar um antes |
+| coluna com o slug puro | `FRONTEND_URL` não está sendo concatenada no `Transform` |
+
+- [ ] **Step 10: Confirmar a regra de ciclo de vida no bucket**
+
+No painel do R2, verificar que existe uma regra expirando objetos com prefixo
+`exports/` após 7 dias (D15).
+
+É configuração de painel, invisível no repositório: nada no código denuncia a
+ausência, e sem ela o armazenamento cresce indefinidamente, já que cada
+exportação cria um objeto novo e nada os remove.
+
+- [ ] **Step 11: Commit**
 
 ```bash
 git add server/Dockerfile server/.dockerignore docker-compose.yml
@@ -3605,11 +3671,40 @@ cd server && pnpm test
 | Método | Rota | Descrição |
 |---|---|---|
 | `POST` | `/links` | Cria um link |
-| `GET` | `/links?cursor&limit` | Lista paginada, mais recentes primeiro |
+| `GET` | `/links?cursor&limit` | Lista todos os links, paginado (ver abaixo) |
 | `GET` | `/links/:slug` | Resolve o slug (não incrementa acessos) |
 | `PATCH` | `/links/:slug/visits` | Incrementa a contagem de acessos |
 | `DELETE` | `/links/:slug` | Remove o link |
 | `POST` | `/links/exports` | Gera o CSV e devolve a URL pública |
+
+### Listagem completa
+
+`GET /links` devolve **todos** os links cadastrados, percorridos por páginas —
+o que atende ao mesmo tempo os requisitos de "listar todas as URLs" e de
+"listagem performática". Chame sem parâmetros para a primeira página e repita
+passando `nextCursor` enquanto ele não for `null`:
+
+```bash
+curl -s 'http://localhost:3333/links?limit=20'
+# { "links": [...], "nextCursor": "eyJjcmVhdGVkQXQ..." }
+
+curl -s 'http://localhost:3333/links?limit=20&cursor=eyJjcmVhdGVkQXQ...'
+# { "links": [...], "nextCursor": null }   ← fim da lista
+```
+
+A paginação é por âncora (keyset), não por deslocamento: criar ou remover links
+durante a navegação não duplica nem esconde itens. O front consome isso com
+scroll infinito, exibindo a lista inteira.
+
+### Exportação e CDN
+
+`POST /links/exports` gera o CSV, envia ao Cloudflare R2 e devolve
+`{ reportUrl }`. O arquivo é servido diretamente pela CDN, sem passar pela API:
+
+```bash
+REPORT_URL=$(curl -s -X POST http://localhost:3333/links/exports | jq -r .reportUrl)
+curl -sO "$REPORT_URL"
+```
 ````
 
 - [ ] **Step 4: Rodar a suíte completa uma última vez**
@@ -3642,7 +3737,7 @@ git commit -m "chore(server): add eslint config and project README"
 | Listar todas as URLs | 7, 13 |
 | Incrementar acessos | 9, 13 |
 | Exportar CSV | 11, 13 |
-| CSV acessível por CDN | 11, 15 |
+| CSV acessível por CDN (verificado baixando da URL) | 11, 15 |
 | Nome de arquivo aleatório e único | 11 |
 | Listagem performática (keyset + índice) | 2, 7, 14 |
 | CSV com as 4 colunas exigidas | 11 |
