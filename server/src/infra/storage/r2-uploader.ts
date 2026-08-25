@@ -8,7 +8,7 @@ export const r2Uploader: Uploader = {
     // Upload (multipart) e não PutObjectCommand: este exige Content-Length
     // conhecido de antemão, impossível com stream de tamanho desconhecido.
     // Cuidado: o buffer é partSize × queueSize — aumentar partSize multiplica
-    // o consumo mínimo de memória (§4.5).
+    // o consumo mínimo de memória.
     const upload = new Upload({
       client: r2,
       params: {
@@ -16,7 +16,7 @@ export const r2Uploader: Uploader = {
         Key: key,
         Body: body,
         ContentType: contentType,
-        // habilita o download no front sem bloqueio de popup (§5.4)
+        // habilita o download no front sem bloqueio de popup
         ContentDisposition: contentDisposition,
       },
     })

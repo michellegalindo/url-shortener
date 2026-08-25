@@ -1,7 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { api, type Link } from '@/lib/api'
-
-type LinksPage = { links: Link[]; nextCursor: string | null }
+import { api } from '@/lib/api'
+import type { LinksPage } from './links-cache'
 
 export function useLinks() {
   return useInfiniteQuery({

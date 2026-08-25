@@ -51,8 +51,10 @@ export function Button({
     >
       {loading && (
         // sobreposto em vez de substituir o conteúdo: trocar o texto por um
-        // spinner encolheria o botão e deslocaria o que está ao lado
-        <span className="absolute inset-0 flex items-center justify-center bg-inherit">
+        // spinner encolheria o botão e deslocaria o que está ao lado.
+        // rounded-[inherit]: o fundo é herdado, o raio não — sem isso o
+        // overlay pinta um retângulo por cima dos cantos arredondados
+        <span className="absolute inset-0 flex items-center justify-center rounded-[inherit] bg-inherit">
           <Spinner />
         </span>
       )}

@@ -25,6 +25,6 @@ export async function deleteLink(
   }
 
   // `true`, e não `undefined`: a implementação do Either discrimina os lados
-  // por `!== undefined`, então makeRight(undefined) quebraria isRight (D7)
+  // por `!== undefined`, então makeRight(undefined) quebraria isRight
   return makeRight(true)
 }

@@ -2,7 +2,7 @@
  * Slugs que colidiriam com caminhos servidos pelo front.
  *
  * A URL curta é `${FRONTEND_URL}/${slug}`, então a colisão é com caminhos do
- * FRONT — não da API, que roda em outra origem (D16). Um slug colidente seria
+ * FRONT — não da API, que roda em outra origem. Um slug colidente seria
  * criado com sucesso e ficaria inalcançável para sempre, sem erro nenhum.
  *
  * `assets`: o Vite emite os arquivos compilados sob `/assets/`.

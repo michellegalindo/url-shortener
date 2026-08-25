@@ -6,7 +6,7 @@ export function useExportLinks() {
     mutationFn: () =>
       api<{ reportUrl: string }>('/links/exports', { method: 'POST' }),
     // explícito, embora seja o padrão de mutations: cada chamada varre a
-    // tabela e cria um objeto novo no R2 — repetir custa dinheiro (§4.5.1)
+    // tabela e cria um objeto novo no R2 — repetir custa dinheiro
     retry: 0,
   })
 }

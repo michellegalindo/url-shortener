@@ -25,7 +25,7 @@ export function TextField({
     // `group` + `data-error` levam o estado às partes internas por CSS.
     // Foco e conteúdo NÃO são espelhados em useState: o navegador já os
     // mantém em :focus-within e :placeholder-shown, e uma cópia em React
-    // dessincroniza com autofill e com setValue do React Hook Form (§5.2.2)
+    // dessincroniza com autofill e com setValue do React Hook Form
     <div
       className="group flex flex-col gap-2"
       data-error={error ? true : undefined}

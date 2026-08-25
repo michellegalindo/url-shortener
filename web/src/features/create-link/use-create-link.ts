@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { keepFirstPage } from '@/features/links-list/links-cache'
 import { api, type Link } from '@/lib/api'
 import { scrollToTop } from '@/lib/scroll-to-top'
 
@@ -16,6 +17,9 @@ export function useCreateLink() {
       // lista, para o link novo entrar com a animação inteira à vista —
       // invalidar antes faria ele aparecer no meio da rolagem
       await scrollToTop()
+      // só a primeira página é refeita: invalidar com N páginas carregadas
+      // dispararia N requisições em série e seguraria o botão até a última
+      queryClient.setQueryData(['links'], keepFirstPage)
       await queryClient.invalidateQueries({ queryKey: ['links'] })
     },
   })

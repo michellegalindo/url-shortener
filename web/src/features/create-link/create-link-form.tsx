@@ -5,6 +5,7 @@ import type { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { TextField } from '@/components/ui/text-field'
 import { ApiError } from '@/lib/api'
+import { BRAND_DOMAIN } from '@/lib/brand'
 import { createLinkSchema } from './create-link-schema'
 import { useCreateLink } from './use-create-link'
 
@@ -86,7 +87,7 @@ export function CreateLinkForm() {
 
       <TextField
         label="Link encurtado"
-        prefix="brev.ly/"
+        prefix={`${BRAND_DOMAIN}/`}
         placeholder=" "
         error={errors.slug?.message}
         {...register('slug', {

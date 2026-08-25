@@ -4,11 +4,14 @@ import { env } from '@/env'
 import { ApiError, api, type Link } from '@/lib/api'
 
 /**
- * Tempo mínimo com a tela "Redirecionando..." visível. Com a API local a
- * resposta chega em poucos ms e a tela virava um flash ilegível; o contador
- * de acessos NÃO espera esse tempo — só a navegação.
+ * Tempo mínimo com a tela "Redirecionando..." visível: 1 s além do atraso
+ * artificial da API (com o padrão de 250 ms dá 1,25 s; com 0, ainda 1 s).
+ * Com a API local a resposta chega em poucos ms e a tela virava um flash
+ * ilegível; o contador de acessos NÃO espera esse tempo — só a navegação.
  */
-const MIN_DISPLAY_MS = 2000
+const MIN_DISPLAY_BASE_MS = 1000
+
+const MIN_DISPLAY_MS = MIN_DISPLAY_BASE_MS + env.VITE_API_DELAY_MS
 
 const wait = (ms: number) =>
   new Promise<void>(resolve => setTimeout(resolve, Math.max(0, ms)))
@@ -38,7 +41,7 @@ export function useRedirect(slug: string) {
 
     async function go(url: string) {
       // keepalive: sem ele o navegador aborta a requisição em voo ao iniciar
-      // a navegação, e a contagem sobe de forma intermitente (D8)
+      // a navegação, e a contagem sobe de forma intermitente
       const countVisit = fetch(
         `${env.VITE_BACKEND_URL}/links/${encodeURIComponent(slug)}/visits`,
         {
@@ -57,7 +60,7 @@ export function useRedirect(slug: string) {
       ])
 
       // replace e não href: href empilha esta página no histórico, e como ela
-      // redireciona ao montar, o botão Voltar reexecuta o redirect (D14)
+      // redireciona ao montar, o botão Voltar reexecuta o redirect
       window.location.replace(url)
     }
 
@@ -68,7 +71,7 @@ export function useRedirect(slug: string) {
 
   return {
     originalUrl,
-    // 404 e falha de transporte são estados distintos (D18)
+    // 404 e falha de transporte são estados distintos
     isNotFound: error instanceof ApiError && error.status === 404,
     isUnavailable:
       error instanceof ApiError && error.status !== 404 ? error : null,

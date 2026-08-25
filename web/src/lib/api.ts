@@ -45,7 +45,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     })
   } catch {
     // fetch só rejeita por falha de transporte; status HTTP de erro resolve
-    // normalmente. Status 0 marca "não chegou ao servidor" (D18).
+    // normalmente. Status 0 marca "não chegou ao servidor".
     throw new ApiError(0, 'Não foi possível conectar ao servidor.')
   }
 

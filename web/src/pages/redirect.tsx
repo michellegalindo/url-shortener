@@ -3,6 +3,7 @@ import logoIcon from '@/assets/logo-icon.svg'
 import { Button } from '@/components/ui/button'
 import { LinkNotFound } from '@/features/redirect/link-not-found'
 import { useRedirect } from '@/features/redirect/use-redirect'
+import { BRAND_NAME } from '@/lib/brand'
 
 export function RedirectPage() {
   const { slug = '' } = useParams<{ slug: string }>()
@@ -17,7 +18,7 @@ export function RedirectPage() {
     return (
       <div className="flex min-h-dvh items-center justify-center p-3">
         <div className="flex w-full max-w-lg flex-col items-center gap-6 rounded-lg bg-gray-100 px-5 py-12 text-center md:px-12 md:py-16">
-          <img src={logoIcon} alt="Brev.ly" width={48} height={48} />
+          <img src={logoIcon} alt={BRAND_NAME} width={48} height={48} />
 
           <h1 className="text-xl">Não foi possível carregar o link</h1>
 
@@ -39,7 +40,7 @@ export function RedirectPage() {
         {/* quica como uma bolinha: sobe, cai e achata no toque */}
         <img
           src={logoIcon}
-          alt="Brev.ly"
+          alt={BRAND_NAME}
           width={48}
           height={48}
           className="redirect-bounce"

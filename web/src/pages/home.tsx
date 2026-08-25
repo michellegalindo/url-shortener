@@ -6,24 +6,31 @@ import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { CreateLinkForm } from '@/features/create-link/create-link-form'
 import { ExportCsvButton } from '@/features/links-list/export-csv-button'
 import { LinksList } from '@/features/links-list/links-list'
-import { useDeleteLink } from '@/features/links-list/use-delete-link'
+import {
+  useCommitLinkRemoval,
+  useDeleteLink,
+} from '@/features/links-list/use-delete-link'
 import { useLinks } from '@/features/links-list/use-links'
 import type { Link } from '@/lib/api'
+import { BRAND_NAME, displayShortUrl } from '@/lib/brand'
 
 export function HomePage() {
   const [linkToDelete, setLinkToDelete] = useState<Link | null>(null)
+  // slug já excluído na API, animando a saída da lista
+  const [leavingSlug, setLeavingSlug] = useState<string | null>(null)
 
   const { data } = useLinks()
   const { mutateAsync: deleteLink, isPending: isDeleting } = useDeleteLink()
+  const commitLinkRemoval = useCommitLinkRemoval()
 
   const isEmpty = (data?.pages[0]?.links.length ?? 0) === 0
 
   async function handleCopy(shortUrl: string) {
     try {
       await navigator.clipboard.writeText(shortUrl)
-      toast.success('Link copiado para a área de transferência.')
+      toast.success('Link copiado para a área de transferência')
     } catch {
-      toast.error('Não foi possível copiar o link.')
+      toast.error('Não foi possível copiar o link')
     }
   }
 
@@ -32,9 +39,10 @@ export function HomePage() {
 
     try {
       await deleteLink(linkToDelete.slug)
-      toast.success('Link excluído.')
+      setLeavingSlug(linkToDelete.slug)
+      toast.success(`Link excluído com sucesso`)
     } catch {
-      toast.error('Não foi possível excluir o link.')
+      toast.error('Não foi possível excluir o link')
     } finally {
       setLinkToDelete(null)
     }
@@ -44,7 +52,7 @@ export function HomePage() {
     <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col gap-3 px-3 pt-8 pb-3 md:gap-8 md:px-8 md:pt-22 md:pb-8">
       <img
         src={logo}
-        alt="Brev.ly"
+        alt={BRAND_NAME}
         className="h-6 w-fit self-center md:self-start"
       />
 
@@ -63,6 +71,11 @@ export function HomePage() {
             onCopy={handleCopy}
             onDelete={setLinkToDelete}
             deletingSlug={isDeleting ? (linkToDelete?.slug ?? null) : null}
+            leavingSlug={leavingSlug}
+            onLeaveEnd={slug => {
+              commitLinkRemoval(slug)
+              setLeavingSlug(current => (current === slug ? null : current))
+            }}
           />
         </section>
       </main>
@@ -78,7 +91,7 @@ export function HomePage() {
           <>
             O link{' '}
             <strong className="font-semibold text-gray-600">
-              brev.ly/{linkToDelete?.slug ?? ''}
+              {displayShortUrl(linkToDelete?.slug ?? '')}
             </strong>{' '}
             será removido permanentemente. Essa ação não pode ser desfeita.
           </>

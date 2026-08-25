@@ -27,7 +27,7 @@ export async function listLinks(
 
   // comparação de row-value: vira um único Index Cond (start condition), em
   // vez do OR/AND equivalente, que o planner só consegue aplicar como Filter
-  // pós-índice — varrendo e descartando toda linha anterior ao anchor (§4.3)
+  // pós-índice — varrendo e descartando toda linha anterior ao anchor
   const condition = anchor
     ? sql`(${schema.links.createdAt}, ${schema.links.id}) < (${anchor.createdAt.toISOString()}, ${anchor.id})`
     : undefined

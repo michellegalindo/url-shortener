@@ -25,7 +25,7 @@ describe('Either', () => {
     expect(unwrapEither(result)).toBe(true)
   })
 
-  it('rejeita `undefined` em runtime — a armadilha da D7', () => {
+  it('rejeita `undefined` em runtime', () => {
     const broken = makeRight(undefined as unknown as string)
 
     expect(isRight(broken)).toBe(false)

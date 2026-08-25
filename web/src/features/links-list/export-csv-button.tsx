@@ -14,7 +14,7 @@ export function ExportCsvButton({ disabled }: { disabled: boolean }) {
       // o objeto sobe ao R2 com Content-Disposition: attachment, então
       // assign() baixa em vez de navegar. Criar um <a> e clicar por script
       // seria bloqueado como popup: o clique sintético acontece dentro de um
-      // callback assíncrono e deixa de ser gesto confiável (§5.4)
+      // callback assíncrono e deixa de ser gesto confiável
       window.location.assign(reportUrl)
     } catch (error) {
       if (error instanceof ApiError && error.status === 422) {

@@ -19,7 +19,7 @@ export const ROUTES = {
  * quebra se alguma entrada aqui não estiver reservada lá.
  *
  * Hoje vazio: a tela de link não encontrado é renderizada DENTRO de `/:slug`,
- * e não como rota própria (D17). O diretório `/assets/` do build do Vite não
+ * e não como rota própria. O diretório `/assets/` do build do Vite não
  * é rota do React, mas está reservado no servidor pelo mesmo motivo.
  */
 export const STATIC_PATHS: string[] = []

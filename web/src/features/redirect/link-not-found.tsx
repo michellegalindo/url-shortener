@@ -1,5 +1,6 @@
 import { ROUTES } from '@/app/routes'
 import notFoundImage from '@/assets/404.svg'
+import { BRAND_DOMAIN } from '@/lib/brand'
 
 export function LinkNotFound() {
   return (
@@ -13,7 +14,7 @@ export function LinkNotFound() {
           O link que você está tentando acessar não existe, foi removido ou é
           uma URL inválida. Saiba mais em{' '}
           <a href={ROUTES.home} className="text-blue-base underline">
-            brev.ly
+            {BRAND_DOMAIN}
           </a>
           .
         </p>

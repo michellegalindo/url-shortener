@@ -12,9 +12,17 @@ type LinksListProps = {
   onCopy: (shortUrl: string) => void
   onDelete: (link: Link) => void
   deletingSlug: string | null
+  leavingSlug: string | null
+  onLeaveEnd: (slug: string) => void
 }
 
-export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
+export function LinksList({
+  onCopy,
+  onDelete,
+  deletingSlug,
+  leavingSlug,
+  onLeaveEnd,
+}: LinksListProps) {
   const {
     data,
     isPending,
@@ -54,7 +62,7 @@ export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
       },
       // root padrão (viewport): a paginação usa o scroll nativo da página, sem
       // rolagem própria no card. rootMargin antecipa a próxima página antes
-      // de o sentinela entrar na tela (§5.3)
+      // de o sentinela entrar na tela
       { rootMargin: '200px', threshold: 0 }
     )
 
@@ -67,7 +75,7 @@ export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
     return <LinksListSkeleton />
   }
 
-  // ausência ≠ falha (D18): sem dado nenhum por erro de query, o usuário
+  // ausência ≠ falha: sem dado nenhum por erro de query, o usuário
   // precisa ver que a busca falhou, não que a lista está vazia. Uma falha ao
   // buscar a PRÓXIMA página não cai aqui — a lista já carregada permanece.
   if (isError && !data) {
@@ -99,7 +107,7 @@ export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
     <div className="relative">
       {/* skeleton só na primeira carga (isPending): a revalidação por
           isFetching não tem indicador — dura milissegundos, e uma barra no
-          topo da lista se confundia com a borda do link recém-criado (§5.3) */}
+          topo da lista se confundia com a borda do link recém-criado */}
       <ul>
         {links.map(({ link, pageIndex, indexInPage }) => (
           <LinkItem
@@ -108,6 +116,8 @@ export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
             onCopy={onCopy}
             onDelete={onDelete}
             isDeleting={deletingSlug === link.slug}
+            isLeaving={leavingSlug === link.slug}
+            onLeaveEnd={() => onLeaveEnd(link.slug)}
             enterDelayMs={pageIndex > 0 ? indexInPage * 40 : null}
             onEnterStart={
               pageIndex === pageCount - 1 && indexInPage === lastPageSize - 1

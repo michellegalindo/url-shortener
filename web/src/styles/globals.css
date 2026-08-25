@@ -2,7 +2,7 @@
 
 @theme {
   /* zera a paleta padrão do Tailwind: sem isso, gray-700/800/900 sobrevivem
-     e convivem duas rampas de cinza diferentes no projeto (§5.1.1) */
+     e convivem duas rampas de cinza diferentes no projeto */
   --color-*: initial;
 
   --color-white: #ffffff;
@@ -24,7 +24,7 @@
   --font-sans: "Open Sans", ui-sans-serif, system-ui, sans-serif;
 
   /* tamanho, entrelinha e peso no MESMO token: não existe caminho para
-     aplicar um tamanho com a entrelinha de outro degrau (§5.1.1) */
+     aplicar um tamanho com a entrelinha de outro degrau */
   --text-xs: 10px;
   --text-xs--line-height: 14px;
   --text-xs--font-weight: 400;
@@ -98,6 +98,52 @@
      cima, e a border-top cruzava a faixa azul — a "borda piscando" */
   background-clip: padding-box;
   animation: link-enter 1.2s ease-out both;
+}
+
+/* saída de um link excluído: some com fade e um deslize curto, depois a
+   linha colapsa para os vizinhos fecharem o espaço — o olho vê "sumiu",
+   não "a lista pulou". max-height fixo porque height:auto não anima; 160px
+   cobre o item mais alto (duas linhas + padding). O reset de
+   prefers-reduced-motion acima zera a animação */
+@keyframes link-leave {
+  /* realce vermelho imediato, espelho do azul de link-enter: marca o item
+     que vai sair antes de ele começar a sumir */
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+    max-height: 160px;
+    background-color: color-mix(in srgb, var(--color-danger) 20%, transparent);
+  }
+  25% {
+    opacity: 1;
+    transform: translateX(0);
+    max-height: 160px;
+    background-color: color-mix(in srgb, var(--color-danger) 20%, transparent);
+  }
+  60% {
+    opacity: 0;
+    transform: translateX(16px);
+    max-height: 160px;
+    background-color: color-mix(in srgb, var(--color-danger) 20%, transparent);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(16px);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-color: transparent;
+    background-color: transparent;
+  }
+}
+
+.link-leave {
+  /* padding-box como em link-enter: sem isso o fundo tingido cobre a
+     border-top e ela some antes da hora */
+  background-clip: padding-box;
+  overflow: hidden;
+  pointer-events: none;
+  animation: link-leave 600ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 /* itens de uma página carregada pelo scroll: entram em cascata (o atraso

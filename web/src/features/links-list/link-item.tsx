@@ -2,6 +2,7 @@ import { CopyIcon, TrashIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { IconButton } from '@/components/ui/icon-button'
 import type { Link } from '@/lib/api'
+import { displayShortUrl } from '@/lib/brand'
 import { buildShortUrl } from '@/lib/build-short-url'
 import { cn } from '@/lib/cn'
 import { formatDate } from '@/lib/format-date'
@@ -14,6 +15,10 @@ type LinkItemProps = {
   onCopy: (shortUrl: string) => void
   onDelete: (link: Link) => void
   isDeleting: boolean
+  /** true entre a confirmação da API e o fim da animação de saída */
+  isLeaving: boolean
+  /** chamado quando a animação de saída termina */
+  onLeaveEnd: () => void
   /** atraso da entrada em cascata (páginas do scroll); null = sem cascata */
   enterDelayMs: number | null
   /** chamado quando a entrada em cascata deste item começa */
@@ -25,13 +30,15 @@ export function LinkItem({
   onCopy,
   onDelete,
   isDeleting,
+  isLeaving,
+  onLeaveEnd,
   enterDelayMs,
   onEnterStart,
 }: LinkItemProps) {
   const shortUrl = buildShortUrl(link.slug)
-  // o texto é a marca (brev.ly/), como no Figma; href e cópia usam a URL
-  // real de VITE_FRONTEND_URL — é ela que precisa funcionar quando colada
-  const displayUrl = `brev.ly/${link.slug}`
+  // o texto é a marca, como no Figma; href e cópia usam a URL real de
+  // VITE_FRONTEND_URL — é ela que precisa funcionar quando colada
+  const displayUrl = displayShortUrl(link.slug)
 
   // anima só o que acabou de ser criado: a primeira carga e as páginas do
   // scroll também montam itens novos, mas são links antigos. Decidido uma
@@ -44,9 +51,11 @@ export function LinkItem({
     <li
       className={cn(
         'flex items-center justify-between gap-4 border-t border-gray-200 py-4',
-        isNew && 'link-enter',
-        !isNew && enterDelayMs !== null && 'page-enter'
+        isNew && !isLeaving && 'link-enter',
+        !isNew && !isLeaving && enterDelayMs !== null && 'page-enter',
+        isLeaving && 'link-leave'
       )}
+      aria-hidden={isLeaving || undefined}
       style={
         !isNew && enterDelayMs !== null
           ? { animationDelay: `${enterDelayMs}ms` }
@@ -56,6 +65,10 @@ export function LinkItem({
         // só a cascata da página: link-enter e o spinner de excluir também
         // disparam animationstart (e o do spinner sobe por bubbling)
         if (event.animationName === 'page-enter') onEnterStart?.()
+      }}
+      onAnimationEnd={event => {
+        // mesmo filtro: só a saída deste item, não animações de filhos
+        if (event.animationName === 'link-leave') onLeaveEnd()
       }}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
