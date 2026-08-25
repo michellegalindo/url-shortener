@@ -5,6 +5,7 @@ Fastify e interface React.
 
 - **Design e decisões técnicas:** [`docs/DESIGN.md`](./docs/DESIGN.md)
 - **Servidor — como ficou e por quê:** [`docs/DECISIONS-SERVER.md`](./docs/DECISIONS-SERVER.md)
+- **Front-end — como ficou e por quê:** [`docs/DECISIONS-WEB.md`](./docs/DECISIONS-WEB.md)
 
 ## Estrutura
 
