@@ -1,4 +1,6 @@
+import { WarningIcon } from '@phosphor-icons/react'
 import { useEffect, useRef } from 'react'
+import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import type { Link } from '@/lib/api'
 import { LinkItem } from './link-item'
@@ -16,10 +18,12 @@ export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
   const {
     data,
     isPending,
+    isError,
     isFetching,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
+    refetch,
   } = useLinks()
 
   const scrollRef = useRef<HTMLUListElement>(null)
@@ -49,6 +53,23 @@ export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
 
   if (isPending) {
     return <LinksListSkeleton />
+  }
+
+  // ausência ≠ falha (D18): sem dado nenhum por erro de query, o usuário
+  // precisa ver que a busca falhou, não que a lista está vazia. Uma falha ao
+  // buscar a PRÓXIMA página não cai aqui — a lista já carregada permanece.
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col items-center gap-3 border-t border-gray-200 px-3 py-8">
+        <WarningIcon className="size-8 text-gray-400" aria-hidden />
+        <p className="text-xs uppercase text-gray-500">
+          não foi possível carregar os links
+        </p>
+        <Button variant="secondary" density="compact" onClick={() => refetch()}>
+          Tentar novamente
+        </Button>
+      </div>
+    )
   }
 
   const links = data?.pages.flatMap(page => page.links) ?? []
