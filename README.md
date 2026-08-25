@@ -1,77 +1,138 @@
-# Brev.ly — Encurtador de URLs
+<p align="center">
+  <img src="./web/src/assets/logo.svg" alt="Brev.ly" width="220">
+</p>
 
-Aplicação fullstack para gerenciamento de URLs encurtadas, com API REST em
-Fastify e interface React.
+<p align="center">
+  Encurtador de URLs fullstack — API REST em Fastify, interface React e exportação de relatórios via CDN.
+</p>
 
-- **Design e decisões técnicas:** [`docs/DESIGN.md`](./docs/DESIGN.md)
-- **Servidor — como ficou e por quê:** [`docs/DECISIONS-SERVER.md`](./docs/DECISIONS-SERVER.md)
-- **Front-end — como ficou e por quê:** [`docs/DECISIONS-WEB.md`](./docs/DECISIONS-WEB.md)
+<p align="center">
+  <img alt="Node 22" src="https://img.shields.io/badge/Node-22-339933?logo=node.js&logoColor=white">
+  <img alt="pnpm" src="https://img.shields.io/badge/pnpm-11-F69220?logo=pnpm&logoColor=white">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white">
+  <img alt="Fastify" src="https://img.shields.io/badge/Fastify-5-000000?logo=fastify&logoColor=white">
+  <img alt="Drizzle" src="https://img.shields.io/badge/Drizzle-ORM-C5F74F?logo=drizzle&logoColor=black">
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white">
+  <img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black">
+  <img alt="Vite" src="https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white">
+  <img alt="Tailwind" src="https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white">
+  <img alt="Vitest" src="https://img.shields.io/badge/Vitest-4-6E9F18?logo=vitest&logoColor=white">
+  <img alt="Biome" src="https://img.shields.io/badge/Biome-2-60A5FA?logo=biome&logoColor=white">
+</p>
 
-## Estrutura
+---
+
+## Sumário
+
+- [Visão geral](#visão-geral)
+- [⚡ Início rápido](#-início-rápido)
+- [🐳 Alternativa: servidor em Docker](#-alternativa-servidor-em-docker)
+- [✅ Como validar os requisitos](#-como-validar-os-requisitos)
+- [🧪 Testes e qualidade](#-testes-e-qualidade)
+- [🌱 Seed: 20 mil links para ver a performance](#-seed-20-mil-links-para-ver-a-performance)
+- [🔧 Variáveis de ambiente](#-variáveis-de-ambiente)
+- [📡 API](#-api)
+- [🪣 Cloudflare R2 (exportação real)](#-cloudflare-r2-exportação-real)
+- [🧭 Decisões de design](#-decisões-de-design)
+
+---
+
+## Visão geral
+
+O Brev.ly permite cadastrar, listar e remover links encurtados, redirecionar
+`/:slug` para a URL original contando cada acesso, e exportar todos os links
+em um CSV servido por CDN.
 
 ```
 url-shortener/
-├── server/   ← API REST + DevOps
-└── web/      ← SPA React + Vite
+├── server/   ← API REST + Dockerfile (desafios Back-end e DevOps)
+└── web/      ← SPA React + Vite (desafio Front-end)
 ```
 
-## Requisitos
+| Pacote | Stack |
+|---|---|
+| `server/` | TypeScript · Fastify 5 · Drizzle ORM · PostgreSQL 17 · Zod · Vitest · Cloudflare R2 (S3 SDK) |
+| `web/` | TypeScript · React 19 · Vite · React Router · TanStack Query · React Hook Form · Zod · Tailwind 4 |
 
-Node 22+ · pnpm 11+ · Docker
+Todas as operações identificam o link pelo **slug** (nunca pelo `id`
+interno) — `DELETE /links/:slug`, `PATCH /links/:slug/visits`,
+`GET /links/:slug`. É a mesma chave que aparece na URL do front, então a
+página `/:slug` consulta a API sem nenhuma tradução intermediária.
 
-## Configuração
+---
+
+## ⚡ Início rápido
+
+Pré-requisitos: **Node 22+**, **pnpm 11+** (`corepack enable` já resolve) e
+**Docker**.
+
+**1. Instale as dependências**
 
 ```bash
 pnpm install
-
-cp server/.env.example server/.env
 ```
 
-As cinco chaves `CLOUDFLARE_*` do `.env.example` vêm vazias (`""`) de
-propósito — são as chaves do enunciado do desafio, e o repositório não pode
-carregar segredos. `server/src/env.ts` valida essas variáveis com `.min(1)` /
-`z.url()` e falha a inicialização do processo se alguma estiver vazia, então
-é preciso preencher as cinco antes de subir o servidor. Placeholders bastam
-para exercitar tudo exceto a exportação para o R2, que exige credenciais
-reais — mas `CLOUDFLARE_PUBLIC_URL` precisa ser uma URL válida (por exemplo
-`http://localhost:9999`), não qualquer texto.
+**2. Crie os arquivos de ambiente**
 
-O `server/.env.test` já vem versionado — não contém segredos e aponta para o
-banco local de teste, então `pnpm test` funciona sem configuração adicional.
+```bash
+cp server/.env.example server/.env
+cp web/.env.example web/.env
+```
 
-### Variáveis de ambiente do servidor
+Os valores padrão já apontam para o Postgres do `docker-compose.yml` e para
+as portas locais (`3333` e `5173`). A descrição de cada chave está em
+[🔧 Variáveis de ambiente](#-variáveis-de-ambiente).
 
-| Chave | Descrição |
+> [!IMPORTANT]
+> As cinco chaves `CLOUDFLARE_*` em `server/.env` vêm **vazias** de
+> propósito (são as chaves do enunciado, e o repositório não carrega
+> segredos). O servidor **se recusa a iniciar** enquanto alguma delas estiver
+> vazia. Para rodar sem uma conta Cloudflare, preencha com placeholders —
+> qualquer texto serve, exceto `CLOUDFLARE_PUBLIC_URL`, que precisa ser uma
+> URL válida:
+>
+> ```env
+> CLOUDFLARE_ACCOUNT_ID="placeholder"
+> CLOUDFLARE_ACCESS_KEY_ID="placeholder"
+> CLOUDFLARE_SECRET_ACCESS_KEY="placeholder"
+> CLOUDFLARE_BUCKET="placeholder"
+> CLOUDFLARE_PUBLIC_URL="http://localhost:9999"
+> ```
+>
+> Com placeholders **tudo funciona, exceto a exportação de CSV**, que precisa
+> de um bucket real (veja [Cloudflare R2](#-cloudflare-r2-exportação-real)).
+
+**3. Suba o banco e aplique as migrations**
+
+```bash
+docker compose up -d postgres
+pnpm --filter server db:migrate
+```
+
+**4. Suba a API e o front (dois terminais)**
+
+```bash
+pnpm dev:server   # API em http://localhost:3333
+pnpm dev:web      # Interface em http://localhost:5173
+```
+
+| Endereço | O que é |
 |---|---|
-| `PORT` | Porta da API (padrão `3333`) |
-| `DATABASE_URL` | Conexão PostgreSQL |
-| `FRONTEND_URL` | Base pública do front. Define as origens de CORS e monta a coluna "URL encurtada" do CSV. **Deve ser igual a `VITE_FRONTEND_URL` do web** — se divergirem, a interface e o relatório mostram endereços diferentes para o mesmo link |
-| `CLOUDFLARE_ACCOUNT_ID` | ID da conta Cloudflare |
-| `CLOUDFLARE_ACCESS_KEY_ID` | Chave de acesso do token R2 |
-| `CLOUDFLARE_SECRET_ACCESS_KEY` | Segredo do token R2 |
-| `CLOUDFLARE_BUCKET` | Nome do bucket |
-| `CLOUDFLARE_PUBLIC_URL` | Domínio público do bucket |
+| http://localhost:5173 | Interface do Brev.ly |
+| http://localhost:3333/docs | Documentação interativa da API (Scalar / OpenAPI) |
+| http://localhost:3333/links | Listagem em JSON |
 
-## Configuração do bucket R2
+---
 
-1. Criar um bucket no painel R2 da Cloudflare.
-2. Gerar um API token S3-compatível com permissão de leitura e escrita.
-3. Habilitar o domínio público do bucket e usá-lo em `CLOUDFLARE_PUBLIC_URL`.
-4. **Criar uma regra de ciclo de vida** que expire objetos com o prefixo
-   `exports/` após 7 dias.
+## 🐳 Alternativa: servidor em Docker
 
-O passo 4 não é opcional: cada exportação cria um objeto novo e nada os
-remove, então sem ele o armazenamento cresce indefinidamente. É configuração
-de painel, invisível no código — nada no repositório denuncia a ausência.
-
-## Executando
-
-### Com Docker
-
-A ordem abaixo é obrigatória, não uma sugestão: as migrations ficam fora do
-entrypoint da aplicação de propósito (`docs/DESIGN.md` §4.8), então pular o
-passo 2 sobe um servidor que inicia normalmente e responde 500 em toda
-requisição que toca o banco.
+Para validar o `Dockerfile` do desafio DevOps, o `docker-compose.yml` sobe a
+API a partir da imagem construída. **A ordem importa**: as migrations ficam
+fora do entrypoint da aplicação de propósito — rodar migration no boot faz
+várias réplicas disputarem o mesmo schema e mistura a responsabilidade de
+"alterar o banco" com a de "servir requisições". Por isso existe o serviço
+`migrate` separado; pular esse passo sobe um servidor que responde 500 em
+toda requisição que toca o banco.
 
 ```bash
 docker compose up -d postgres
@@ -79,64 +140,157 @@ docker compose --profile tools run --rm migrate
 docker compose up -d server
 ```
 
-### Local
+A imagem (`server/Dockerfile`) é multi-stage sobre `node:22-alpine`, instala
+com `--frozen-lockfile`, copia só `dist/` + migrations para o estágio final,
+instala apenas dependências de produção e roda como usuário `node`
+(non-root).
 
-```bash
-docker compose up -d postgres
-cd server
-pnpm db:migrate
-pnpm dev
-```
+---
 
-API em `http://localhost:3333` · documentação em `http://localhost:3333/docs`
+## ✅ Como validar os requisitos
 
-## Scripts do servidor
+Roteiro para conferir cada regra do enunciado, na interface ou via `curl`.
+Com a API e o front no ar (passos acima):
 
-| Script | Ação |
-|---|---|
-| `pnpm dev` | Servidor em modo watch |
-| `pnpm build` | Compila para `dist/` |
-| `pnpm db:generate` | Gera migration a partir do schema |
-| `pnpm db:migrate` | Aplica as migrations |
-| `pnpm db:seed` | Popula com 20.000 links de teste |
-| `pnpm test` | Suíte de testes |
-| `pnpm lint` (na raiz) | Biome — lint + formatação dos dois pacotes |
+### Back-end e Front-end
 
-## Testes
-
-```bash
-cd server && pnpm test
-```
-
-Os testes rodam contra um banco separado, `brevly_test`, criado
-automaticamente por `docker/init.sql` na primeira subida do Postgres. O
-`.env.test` é versionado — não contém segredo algum — então não há nada a
-configurar antes.
-
-O script `pretest` aplica as migrations no banco de teste automaticamente. Cada
-teste começa com a tabela vazia (`TRUNCATE` no `beforeEach`), o que permite
-verificar estados como "lista vazia" de forma confiável.
-
-Se o volume do Postgres já existir de antes e `brevly_test` não estiver lá,
-recrie-o: `docker compose down -v && docker compose up -d postgres`.
-
-## API
-
-| Método | Rota | Descrição |
+| # | Requisito | Como conferir |
 |---|---|---|
-| `POST` | `/links` | Cria um link |
-| `GET` | `/links?cursor&limit` | Lista todos os links, paginado (ver abaixo) |
-| `GET` | `/links/:slug` | Resolve o slug (não incrementa acessos) |
-| `PATCH` | `/links/:slug/visits` | Incrementa a contagem de acessos |
-| `DELETE` | `/links/:slug` | Remove o link |
-| `POST` | `/links/exports` | Gera o CSV e devolve a URL pública |
+| 1 | **Criar um link** | Na página inicial, informe uma URL e um apelido → o link aparece no topo da lista. `curl -s -X POST localhost:3333/links -H 'content-type: application/json' -d '{"originalUrl":"https://example.com","slug":"meu-link"}'` → `201` |
+| 2 | **Rejeitar encurtamento mal formatado** | Tente o apelido `Meu Link!` → o formulário bloqueia com mensagem. Na API, `-d '{"originalUrl":"https://example.com","slug":"a b"}'` → `400` com `issues[]` |
+| 3 | **Rejeitar encurtamento já existente** | Cadastre `meu-link` duas vezes → toast de erro na segunda. Na API, repita o `POST` do item 1 → `409` |
+| 4 | **Deletar um link** | Ícone de lixeira no item → diálogo de confirmação → some da lista. `curl -s -X DELETE localhost:3333/links/meu-link -o /dev/null -w '%{http_code}'` → `204` |
+| 5 | **Obter a URL original pela encurtada** | `curl -s localhost:3333/links/meu-link` → JSON com `originalUrl`. Esta rota **não** incrementa o contador |
+| 6 | **Listar todas as URLs** | A lista da página inicial, com scroll infinito. `curl -s 'localhost:3333/links?limit=20'` → `{ links, nextCursor }` |
+| 7 | **Incrementar acessos** | Abra `http://localhost:5173/meu-link` **em uma aba nova**: a página de redirecionamento incrementa e redireciona; volte à lista e a contagem subiu. Na API, `curl -s -X PATCH localhost:3333/links/meu-link/visits -o /dev/null -w '%{http_code}'` → `204` |
+| 8 | **Exportar / baixar CSV** | Botão **Baixar CSV** no cabeçalho da lista → abre a URL pública do arquivo na CDN. Exige R2 configurado; com placeholders o botão responde erro. Na API, `curl -s -X POST localhost:3333/links/exports` → `{ reportUrl }` |
+| 9 | **CSV via CDN, nome aleatório e único** | O `reportUrl` aponta para `exports/<uuid>-links.csv` no domínio público do bucket; duas exportações geram nomes diferentes |
+| 10 | **Colunas do CSV** | `URL original`, `URL encurtada`, `Contagem de acessos`, `Data de criação` — nessa ordem, cabeçalho na primeira linha |
+| 11 | **Listagem performática** | Paginação por cursor (keyset) sobre índice `(created_at, id)`; rode o [seed](#-seed-20-mil-links-para-ver-a-performance) e role a lista |
 
-### Listagem completa
+### Regras específicas do front
 
-`GET /links` devolve **todos** os links cadastrados, percorridos por páginas —
-o que atende ao mesmo tempo os requisitos de "listar todas as URLs" e de
-"listagem performática". Chame sem parâmetros para a primeira página e repita
-passando `nextCursor` enquanto ele não for `null`:
+| Requisito | Como conferir |
+|---|---|
+| **SPA com Vite, 3 páginas** | `/` cadastro + lista · `/:slug` redirecionamento · qualquer outra rota → página 404 (ex.: `http://localhost:5173/nao/existe`) |
+| **Slug inexistente** | `http://localhost:5173/nao-existe` → página "link não encontrado" |
+| **Empty state** | Delete todos os links: a lista mostra o estado vazio e o botão **Baixar CSV** fica desabilitado |
+| **Estados de carregamento** | Skeleton na primeira carga; spinner nos botões durante criação, exclusão e exportação. Para vê-los com calma, defina `VITE_API_DELAY_MS=1500` em `web/.env` e reinicie o `pnpm dev:web` |
+| **Bloqueio por estado** | Botão de exportar desabilitado sem links; botões de ação desabilitados enquanto a requisição está pendente |
+| **Responsividade** | Redimensione até ~375px: layout empilha, formulário e lista ocupam a largura toda (mobile first, `md:`/`lg:` para desktop) |
+
+### Requisitos de DevOps e entrega
+
+| Requisito | Onde |
+|---|---|
+| `.env.example` com as chaves do enunciado | `server/.env.example` · `web/.env.example` |
+| Script `db:migrate` | `server/package.json` |
+| `Dockerfile` com boas práticas | `server/Dockerfile` (multi-stage, alpine, lockfile, prod-only, non-root) |
+| CORS habilitado | `server/src/infra/http/app.ts` (`@fastify/cors`, origem = `FRONTEND_URL`); o servidor loga as origens permitidas ao subir |
+| PostgreSQL · Fastify · Drizzle · TypeScript | `server/package.json`, `server/src/infra/db/` |
+| Subpastas `web/` e `server/` | raiz do repositório |
+
+---
+
+## 🧪 Testes e qualidade
+
+```bash
+pnpm test:server   # suíte do servidor (integração com Postgres real)
+pnpm test:web      # testes de lógica do front
+pnpm lint          # Biome — lint + formatação dos dois pacotes
+```
+
+Os testes do servidor rodam contra um banco separado, `brevly_test`, criado
+automaticamente por `docker/init.sql` na primeira subida do Postgres. O
+`server/.env.test` é versionado (não contém segredos) e o script `pretest`
+aplica as migrations nesse banco, então basta o container estar de pé.
+Cada teste começa com a tabela vazia (`TRUNCATE` no `beforeEach`).
+
+> Se o volume do Postgres já existia antes e `brevly_test` não foi criado:
+> `docker compose down -v && docker compose up -d postgres`.
+
+A suíte cobre validação de slug e URL, conflito `409` (inclusive corrida de
+concorrência para o mesmo slug), incremento concorrente sem perda de
+contagens, paginação sem repetir nem pular itens, e o caminho completo da
+exportação contra um dublê de storage em memória (cabeçalho, colunas, linhas
+em múltiplos lotes, nome único por chamada).
+
+A mesma sequência roda na CI a cada push (`.github/workflows/tests.yml`):
+lint → testes do servidor → type-check → build do servidor → testes do
+front → type-check → build do front.
+
+---
+
+## 🌱 Seed: 20 mil links para ver a performance
+
+```bash
+pnpm --filter server db:seed
+```
+
+Popula o banco de desenvolvimento com 20.000 links. Depois, role a lista no
+front (scroll infinito) ou pagine pela API — cada página é uma consulta
+indexada, independente do tamanho da tabela.
+
+---
+
+## 🔧 Variáveis de ambiente
+
+### `server/.env`
+
+| Chave | Descrição |
+|---|---|
+| `PORT` | Porta da API (padrão `3333`) |
+| `DATABASE_URL` | Conexão PostgreSQL (`postgresql://…`) |
+| `FRONTEND_URL` | Base pública do front. Define as origens de CORS e monta a coluna "URL encurtada" do CSV. **Deve ser igual a `VITE_FRONTEND_URL` do web** |
+| `CLOUDFLARE_ACCOUNT_ID` | ID da conta Cloudflare |
+| `CLOUDFLARE_ACCESS_KEY_ID` | Chave de acesso do token R2 |
+| `CLOUDFLARE_SECRET_ACCESS_KEY` | Segredo do token R2 |
+| `CLOUDFLARE_BUCKET` | Nome do bucket |
+| `CLOUDFLARE_PUBLIC_URL` | Domínio público do bucket (precisa ser URL válida) |
+
+### `web/.env`
+
+| Chave | Descrição |
+|---|---|
+| `VITE_FRONTEND_URL` | Base pública do front. Monta a URL curta exibida e copiada. **Deve ser igual a `FRONTEND_URL` do servidor** |
+| `VITE_BACKEND_URL` | Endereço da API |
+| `VITE_API_DELAY_MS` | Opcional, só para desenvolvimento local. Atraso artificial (em milissegundos) aplicado a toda requisição à API, para tornar visíveis os skeletons e os estados de carregamento dos botões, que em `localhost` passam rápido demais para serem vistos. Padrão `0` (sem atraso) |
+
+Para inspecionar os estados de carregamento com calma:
+
+```env
+# web/.env
+VITE_API_DELAY_MS=1500
+```
+
+Reinicie o `pnpm dev:web` e recarregue a página: a lista mostra o skeleton
+por 1,5 s e cada ação (criar, excluir, exportar) exibe o spinner e mantém o
+botão bloqueado até a resposta chegar. Volte a `0` para o uso normal.
+
+As variáveis `VITE_*` são embutidas no bundle em tempo de build — precisam
+existir no ambiente de build, não só no runtime.
+
+---
+
+## 📡 API
+
+Documentação interativa em `http://localhost:3333/docs`.
+
+| Método | Rota | Descrição | Respostas |
+|---|---|---|---|
+| `POST` | `/links` | Cria um link | `201` · `400` inválido · `409` slug em uso/reservado |
+| `GET` | `/links?cursor&limit` | Lista todos os links, paginado | `200` `{ links, nextCursor }` |
+| `GET` | `/links/:slug` | Resolve o slug (não incrementa acessos) | `200` · `404` |
+| `PATCH` | `/links/:slug/visits` | Incrementa a contagem de acessos | `204` · `404` |
+| `DELETE` | `/links/:slug` | Remove o link | `204` · `404` |
+| `POST` | `/links/exports` | Gera o CSV e devolve a URL pública | `200` `{ reportUrl }` · `422` sem links |
+
+<details>
+<summary><strong>Listagem completa com cursor</strong></summary>
+
+`GET /links` devolve **todos** os links, percorridos por páginas. Chame sem
+parâmetros para a primeira página e repita passando `nextCursor` enquanto
+ele não for `null`:
 
 ```bash
 curl -s 'http://localhost:3333/links?limit=20'
@@ -146,79 +300,71 @@ curl -s 'http://localhost:3333/links?limit=20&cursor=eyJjcmVhdGVkQXQ...'
 # { "links": [...], "nextCursor": null }   ← fim da lista
 ```
 
-A paginação é por âncora (keyset), não por deslocamento: criar ou remover links
-durante a navegação não duplica nem esconde itens. O front consome isso com
-scroll infinito, exibindo a lista inteira.
+A paginação é por âncora (keyset), não por deslocamento: criar ou remover
+links durante a navegação não duplica nem esconde itens. O front consome
+isso com scroll infinito.
 
-### Exportação e CDN
+</details>
 
-`POST /links/exports` gera o CSV, envia ao Cloudflare R2 e devolve
-`{ reportUrl }`. O arquivo é servido diretamente pela CDN, sem passar pela API:
+<details>
+<summary><strong>Exportação e CDN</strong></summary>
+
+`POST /links/exports` gera o CSV em streaming (cursor do Postgres, memória
+constante), envia ao Cloudflare R2 e devolve `{ reportUrl }`. O arquivo é
+servido pela CDN, sem passar pela API:
 
 ```bash
 REPORT_URL=$(curl -s -X POST http://localhost:3333/links/exports | jq -r .reportUrl)
 curl -sO "$REPORT_URL"
 ```
 
-O caminho de upload é verificado por testes automatizados contra um dublê em
-memória, que confere os bytes reais do CSV gerado (cabeçalho, colunas,
-contagem de linhas em múltiplos lotes do cursor). O round trip real contra o
-R2 exige credenciais que este repositório deliberadamente não carrega — foi
-verificado manualmente contra um bucket real, e precisa ser repetido em cada
-ambiente novo depois de configurar o bucket (seção acima).
+</details>
 
-## Front-end
+---
 
-```bash
-cp web/.env.example web/.env
-cd web && pnpm dev
-```
+## 🪣 Cloudflare R2 (exportação real)
 
-Aplicação em `http://localhost:5173`.
+Só é necessário para exercitar o botão **Baixar CSV** de ponta a ponta.
 
-A partir da raiz do repositório, sem precisar entrar em `web/`: `pnpm dev:web`
-equivale a `pnpm dev` e `pnpm test:web` equivale a `pnpm test`.
+1. Crie um bucket no painel R2 da Cloudflare.
+2. Gere um API token S3-compatível com permissão de leitura e escrita.
+3. Habilite o domínio público do bucket e use-o em `CLOUDFLARE_PUBLIC_URL`.
+4. **Crie uma regra de ciclo de vida** que expire objetos com o prefixo
+   `exports/` após 7 dias — cada exportação cria um objeto novo e nada os
+   remove.
+5. Preencha as cinco chaves em `server/.env` e reinicie a API.
 
-### Variáveis de ambiente do web
+---
 
-| Chave | Descrição |
-|---|---|
-| `VITE_FRONTEND_URL` | Base pública do front. Monta a URL curta exibida e copiada. **Deve ser igual a `FRONTEND_URL` do servidor** |
-| `VITE_BACKEND_URL` | Endereço da API |
-| `VITE_API_DELAY_MS` | Opcional. Atraso artificial nas requisições, para inspecionar os estados de carregamento |
+## 🧭 Decisões de design
 
-As variáveis `VITE_*` são embutidas no bundle em tempo de build — precisam existir no ambiente de build, não só no runtime.
+Resumo das escolhas que não são óbvias só de ler o código:
 
-### Páginas
-
-| Rota | Descrição |
-|---|---|
-| `/` | Cadastro de link e listagem com scroll infinito |
-| `/:slug` | Resolve o apelido, incrementa a contagem e redireciona |
-| `*` | Página não encontrada |
-
-### Scripts
-
-| Script | Ação |
-|---|---|
-| `pnpm dev` | Servidor de desenvolvimento |
-| `pnpm build` | Type-check e build de produção |
-| `pnpm preview` | Serve o build localmente |
-| `pnpm test` | Testes de lógica |
-| `pnpm lint` (na raiz) | Biome — lint + formatação dos dois pacotes |
-
-### Publicação
-
-A aplicação é uma SPA cuja funcionalidade central é o acesso direto a `/:slug`.
-O host precisa reescrever toda rota desconhecida para `index.html`, senão cada
-link encurtado devolve 404 — e o problema **não aparece em desenvolvimento**,
-porque o servidor do Vite já faz esse redirecionamento.
-
-| Host | Configuração |
-|---|---|
-| nginx | `try_files $uri $uri/ /index.html;` |
-| Vercel | `"rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]` |
-| Netlify | `/* /index.html 200` em `public/_redirects` |
-
-Após publicar, abrir uma URL encurtada **em aba nova** — só o acesso direto
-exercita o rewrite.
+- **Slug como identificador em toda a API.** O enunciado deixa livre usar
+  `id` ou URL encurtada; o projeto padroniza no slug e nunca expõe o `id`
+  interno. A página `/:slug` do front usa a mesma chave, sem lookup
+  intermediário.
+- **`GET /links/:slug` não incrementa acessos; `PATCH /links/:slug/visits`
+  incrementa.** Separar leitura de efeito colateral permite que a listagem, o
+  CSV e as ferramentas de inspeção consultem um link sem inflar a contagem.
+  O incremento é atômico no banco (`UPDATE … SET access_count = access_count
+  + 1`), então chamadas concorrentes não perdem contagens.
+- **Listagem por cursor (keyset), não por `OFFSET`.** `GET /links` devolve
+  todos os links em páginas ancoradas em `(created_at, id)` com índice
+  correspondente: cada página custa o mesmo independentemente do tamanho da
+  tabela, e criar ou remover links durante a navegação não duplica nem
+  esconde itens.
+- **Exportação em streaming.** O CSV é gerado a partir de um cursor real do
+  Postgres e enviado ao R2 por upload multipart enquanto é produzido — memória
+  constante mesmo com centenas de milhares de links.
+- **Slug normalizado e com lista de reservados.** Slugs são convertidos para
+  minúsculas e restritos a `[a-z0-9-]`; nomes que colidiriam com rotas do
+  próprio front (por exemplo `assets`) respondem `409` como se já existissem.
+- **Validação com Zod nas duas pontas.** O front valida antes de enviar
+  (feedback imediato) e a API valida de novo (`400` com `issues[]`), porque o
+  front não é a única forma de chamar a API.
+- **Migrations fora do entrypoint da imagem.** Ver a seção
+  [🐳 Docker](#-alternativa-servidor-em-docker).
+- **Testes de integração contra Postgres real**, num banco `brevly_test`
+  separado, em vez de mocks do ORM: o que se quer verificar (índices,
+  unicidade, concorrência) só existe no banco de verdade.
