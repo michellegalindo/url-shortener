@@ -38,7 +38,10 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${env.VITE_BACKEND_URL}${path}`, {
       ...init,
-      headers: { 'content-type': 'application/json', ...init?.headers },
+      headers: {
+        ...(init?.body ? { 'content-type': 'application/json' } : {}),
+        ...init?.headers,
+      },
     })
   } catch {
     // fetch só rejeita por falha de transporte; status HTTP de erro resolve

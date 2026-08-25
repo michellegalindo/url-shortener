@@ -69,4 +69,28 @@ describe('api', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect(error.status).toBe(0)
   })
+
+  it('não envia content-type quando a requisição não tem corpo', async () => {
+    const fetch = mockFetch(204, null)
+    vi.stubGlobal('fetch', fetch)
+
+    await api('/links/x', { method: 'DELETE' })
+
+    const init = fetch.mock.calls[0]?.[1] as RequestInit
+    expect(
+      (init.headers as Record<string, string>)['content-type']
+    ).toBeUndefined()
+  })
+
+  it('envia content-type quando a requisição tem corpo', async () => {
+    const fetch = mockFetch(200, { ok: true })
+    vi.stubGlobal('fetch', fetch)
+
+    await api('/links', { method: 'POST', body: JSON.stringify({}) })
+
+    const init = fetch.mock.calls[0]?.[1] as RequestInit
+    expect((init.headers as Record<string, string>)['content-type']).toBe(
+      'application/json'
+    )
+  })
 })
