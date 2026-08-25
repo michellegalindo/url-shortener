@@ -7,11 +7,27 @@ import { z } from 'zod'
 // formulário aceitaria algo que a API recusa com 400.
 export const createLinkSchema = z.object({
   originalUrl: z
-    .url({
-      protocol: /^https?$/,
-      error: 'Informe uma URL válida.',
-    })
-    .max(2048, 'A URL deve ter no máximo 2048 caracteres.'),
+    .string()
+    .transform(value => value.trim())
+    // igual ao servidor: `linkedin.com/in/x` ganha https:// antes de validar
+    .transform(value =>
+      /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`
+    )
+    .pipe(
+      z
+        .url({
+          protocol: /^https?$/,
+          // z.url() aceita qualquer host sintaticamente válido, inclusive `http://w`;
+          // exige um domínio com TLD (ex.: example.com); `www.` na frente não
+          // conta como rótulo, senão `www.petlove` passaria. `localhost` (com ou
+          // sem porta) entra para testar o redirect em desenvolvimento; IP puro
+          // fica de fora
+          hostname:
+            /^(?:localhost|(?!www\.[a-z0-9-]+$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63})$/i,
+          error: 'Informe uma URL válida.',
+        })
+        .max(2048, 'A URL deve ter no máximo 2048 caracteres.')
+    ),
   slug: z
     .string()
     .transform(value => value.trim().toLowerCase())

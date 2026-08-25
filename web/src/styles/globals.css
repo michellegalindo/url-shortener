@@ -22,7 +22,6 @@
   --color-current: currentColor;
 
   --font-sans: "Open Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Quicksand", ui-sans-serif, system-ui, sans-serif;
 
   /* tamanho, entrelinha e peso no MESMO token: não existe caminho para
      aplicar um tamanho com a entrelinha de outro degrau (§5.1.1) */
@@ -54,11 +53,6 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-
-  h1,
-  h2 {
-    font-family: var(--font-display);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -72,4 +66,99 @@
     /* biome-ignore lint/complexity/noImportantStyles: reduced-motion reset must override component transitions */
     transition-duration: 0.01ms !important;
   }
+}
+
+/* entrada de um link novo na lista: desce com fade e um realce azul que
+   se dissipa, para o olho achar o item recém-criado. O reset de
+   prefers-reduced-motion acima zera a animação */
+@keyframes link-enter {
+  0% {
+    opacity: 0;
+    background-color: color-mix(
+      in srgb,
+      var(--color-blue-base) 7%,
+      transparent
+    );
+  }
+  35% {
+    opacity: 1;
+    background-color: color-mix(
+      in srgb,
+      var(--color-blue-base) 7%,
+      transparent
+    );
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.link-enter {
+  /* sem translateY: o deslocamento sobrepunha o fundo tingido ao item de
+     cima, e a border-top cruzava a faixa azul — a "borda piscando" */
+  background-clip: padding-box;
+  animation: link-enter 1.2s ease-out both;
+}
+
+/* itens de uma página carregada pelo scroll: entram em cascata (o atraso
+   por item vem inline), com fade e uma subida curta — o carregamento fica
+   visível pela entrada dos itens, não pelo spinner, que é rápido demais */
+@keyframes page-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: page-enter 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* tela de redirect: o ícone quica como uma bolinha — sobe com desaceleração,
+   cai com aceleração e achata no toque (squash & stretch). O reset de
+   prefers-reduced-motion acima zera a animação */
+@keyframes redirect-bounce {
+  /* começa no alto e cai: a queda ocupa 42% do ciclo e a subida 58% —
+     cai mais rápido do que sobe */
+  0%,
+  100% {
+    transform: translateY(-8px) scale(0.98, 1.02);
+    animation-timing-function: ease-in;
+  }
+  32% {
+    transform: translateY(4px) scale(1, 1);
+  }
+  42% {
+    transform: translateY(8px) scale(1.05, 0.95);
+    animation-timing-function: ease-out;
+  }
+  56% {
+    transform: translateY(4px) scale(1, 1);
+  }
+}
+
+.redirect-bounce {
+  transform-origin: center bottom;
+  animation: redirect-bounce 0.85s infinite;
+}
+
+/* toasts com fundo na cor do estado, sem borda, e texto e ícone brancos (os
+   ícones do Sonner usam fill="currentColor"), sem richColors nem ícone
+   customizado */
+[data-sonner-toast][data-type="success"],
+[data-sonner-toast][data-type="error"] {
+  color: var(--color-white);
+  border: 0;
+}
+
+[data-sonner-toast][data-type="success"] {
+  background-color: var(--color-blue-base);
+}
+
+[data-sonner-toast][data-type="error"] {
+  background-color: var(--color-danger);
 }

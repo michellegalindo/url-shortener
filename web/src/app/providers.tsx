@@ -8,7 +8,7 @@ export function Providers() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-      <Toaster position="top-right" duration={4000} />
+      <Toaster position="top-center" duration={4000} offset={44} />
     </QueryClientProvider>
   )
 }

@@ -16,7 +16,7 @@ const button = tv({
       primary:
         'bg-blue-base text-white hover:bg-blue-dark focus-visible:outline-blue-dark',
       secondary:
-        'bg-gray-200 text-gray-500 ring-1 ring-transparent hover:ring-blue-base focus-visible:outline-blue-base',
+        'bg-gray-200 text-gray-500 hover:bg-gray-300 focus-visible:outline-blue-base',
       destructive:
         'bg-danger text-white hover:opacity-90 focus-visible:outline-danger',
     },

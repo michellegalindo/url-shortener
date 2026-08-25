@@ -34,6 +34,24 @@ describe('originalUrlSchema', () => {
     )
   })
 
+  it('aceita localhost com porta', () => {
+    expect(
+      originalUrlSchema.safeParse('http://localhost:5173/weq21e').success
+    ).toBe(true)
+  })
+
+  it('aceita www. seguido de domínio com TLD', () => {
+    expect(
+      originalUrlSchema.safeParse('https://www.petlove.com.br').success
+    ).toBe(true)
+  })
+
+  it('prefixa https:// quando não há esquema', () => {
+    expect(originalUrlSchema.parse('linkedin.com/in/myprofile')).toBe(
+      'https://linkedin.com/in/myprofile'
+    )
+  })
+
   it('aceita http://', () => {
     expect(originalUrlSchema.parse('http://example.com/a')).toBe(
       'http://example.com/a'
@@ -42,12 +60,16 @@ describe('originalUrlSchema', () => {
 
   it.each([
     'nao-e-url',
-    'example.com',
     '',
     'javascript:alert(1)',
     'data:text/html,<script>alert(1)</script>',
     'vbscript:msgbox(1)',
     'file:///etc/passwd',
+    'http://w',
+    'http://example',
+    'https://www.petlove',
+    'http://localhost:5173.com/x',
+    'http://127.0.0.1',
   ])('rejeita %s', invalid => {
     expect(originalUrlSchema.safeParse(invalid).success).toBe(false)
   })

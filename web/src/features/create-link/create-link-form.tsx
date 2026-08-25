@@ -20,6 +20,7 @@ export function CreateLinkForm() {
     handleSubmit,
     reset,
     setError,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<
     z.input<typeof createLinkSchema>,
@@ -34,14 +35,16 @@ export function CreateLinkForm() {
 
   async function onSubmit(values: z.output<typeof createLinkSchema>) {
     try {
+      // o scroll ao topo e a revalidação da lista acontecem no onSuccess do
+      // hook, depois que a API confirmou; mutateAsync só resolve ao final
       await mutateAsync(values)
       reset()
       toast.success('Link criado com sucesso.')
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
-        // 409 é sempre sobre o apelido: leva o erro ao campo em vez de um
-        // toast solto, para o usuário saber exatamente o que corrigir
-        setError('slug', { message: error.message }, { shouldFocus: true })
+        // 409 (link em uso ou reservado) vai para a snackbar: o valor
+        // digitado é válido, só não está disponível — não é erro de campo
+        toast.error(error.message)
         return
       }
 
@@ -69,7 +72,7 @@ export function CreateLinkForm() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="flex flex-col gap-5 rounded-lg bg-white p-6 md:p-8"
+      className="flex min-w-0 flex-col gap-5 rounded-lg bg-white p-6 md:sticky md:top-8 md:p-8"
       noValidate
     >
       <h2 className="text-lg">Novo link</h2>
@@ -86,7 +89,11 @@ export function CreateLinkForm() {
         prefix="brev.ly/"
         placeholder=" "
         error={errors.slug?.message}
-        {...register('slug')}
+        {...register('slug', {
+          // normaliza enquanto digita, em vez de aceitar maiúsculas e salvar
+          // outra coisa: o usuário vê exatamente o apelido que será criado
+          onChange: event => setValue('slug', event.target.value.toLowerCase()),
+        })}
       />
 
       <Button type="submit" loading={isSubmitting}>

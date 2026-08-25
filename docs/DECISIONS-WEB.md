@@ -129,10 +129,20 @@ coexistindo, sem aviso de qual é usada por engano.
 tamanho de um degrau com entrelinha de outro, porque a entrelinha não é
 classe Tailwind separada.
 
-**Quicksand em `h1`/`h2`** via `@layer base` em `globals.css`. Só foi
-corrigido na revisão final: a fonte estava importada e tokenizada, mas nunca
-aplicada a nenhum elemento — sintoma (título em Open Sans) que não aparece em
-nenhum teste automatizado, só em inspeção visual.
+**A URL original ganha `https://` quando vem sem esquema e exige domínio
+com TLD**, igual no servidor. `linkedin.com/in/x` é o que as pessoas colam, e
+sem esquema não é URL para o `z.url()`; o prefixo entra num `transform` antes
+do `pipe`. O servidor precisa fazer o mesmo — é ele que armazena, e um
+`location.replace('linkedin.com/…')` no redirect seria caminho relativo. A
+regra de `hostname` é o que torna o prefixo seguro: `nao-e-url` vira
+`https://nao-e-url` e continua rejeitado; `http://w` e `www.petlove` também
+(um `www.` na frente não conta como rótulo). `localhost`, com ou sem porta,
+é aceito para testar o redirect em desenvolvimento; IP puro fica de fora.
+
+**Uma família só: Open Sans**, do corpo aos títulos — peso e tamanho vêm dos
+tokens `text-*`. O Style Guide do Figma mostra Quicksand apenas no logotipo,
+que aqui é SVG; carregar a segunda fonte custa uma requisição em toda visita
+para não ser usada em texto nenhum.
 
 **`!important` no reset de `prefers-reduced-motion`**, com
 `biome-ignore lint/complexity/noImportantStyles` por linha (não por arquivo):
@@ -166,30 +176,53 @@ exportar) dentro do form sem esse default disparia submit por acidente. O
 
 ## Formulário — mapeamento de erro
 
-`create-link-form.tsx` trata a resposta de erro em ordem: **409** vai direto
-para `setError('slug', …, { shouldFocus: true })` (é sempre sobre o slug, o
-único campo com restrição de unicidade); **`issues`** percorre cada uma e
+`create-link-form.tsx` trata a resposta de erro em ordem: **409** (link em
+uso ou reservado) vai para a snackbar com a mensagem do servidor — o valor
+digitado é válido, só não está disponível, então não é erro de campo;
+**`issues`** percorre cada uma e
 chama `setError` no campo (`originalUrl`/`slug`) correspondente; se nenhuma
 issue bateu com um campo conhecido, cai num `toast.error` genérico em vez de
 terminar em silêncio. Esse terceiro ramo só foi adicionado na revisão final —
 antes, o código retornava depois do loop de issues mesmo sem nenhuma ter sido
 aplicada a um campo.
 
+**O apelido é convertido para minúsculas enquanto o usuário digita**
+(`register('slug', { onChange })` + `setValue`), não só no `transform` do
+schema: sem isso o campo aceita `HHH`, o servidor salva `hhh`, e o usuário vê
+um link diferente do que digitou. O `transform` continua no schema para
+cobrir autofill e colagem.
+
 ---
 
 ## Lista de links
 
-**Scroll infinito com keyset**, `IntersectionObserver` com
-`root: scrollRef.current` — a `<ul>` da lista, não a `window`. O card tem
-rolagem própria (`max-h-[26rem] overflow-y-auto`); com o `root` padrão
-(viewport), o sentinela nunca entraria em interseção porque a janela nunca
-rola — a lista pararia de carregar ao chegar no fim, sem erro nenhum.
+**Scroll infinito com keyset no scroll nativo da página**: o card cresce com
+o conteúdo e o `IntersectionObserver` usa o `root` padrão (viewport) com
+`rootMargin: '200px'`. A alternativa óbvia — rolagem própria no card com
+`max-h` + `overflow-y-auto` — exige `root: <a lista>` (com o root padrão o
+sentinela nunca intersecta) e, no mobile, um teto fixo que deixa a lista
+apertada com dois scrolls aninhados. No desktop o formulário é
+`md:sticky md:top-8`, para seguir visível enquanto a lista rola.
 
-**Três indicadores, nunca o mesmo:** `isPending` → skeleton de 5 linhas;
-`isFetching && !isFetchingNextPage` → barra fina no topo; `isFetchingNextPage`
-→ spinner no rodapé. Usar `isFetching` para o skeleton faria a lista sumir e
-reaparecer a cada criação/remoção — a invalidação de `['links']` conta como
-fetch — perdendo posição de rolagem numa ação que deveria ser incremental.
+**`grid-cols-[minmax(0,1fr)]` também no mobile.** A coluna implícita `auto`
+do grid usa o *min-content* do card como mínimo, e a URL original truncada
+(`white-space: nowrap`) contribui com a largura inteira do texto — o card
+estourava a tela em 375 px. O `min-w-0` no flex interno não alcança o track
+do grid; é preciso zerar o mínimo na definição da coluna (ou no item).
+
+**A lista refaz a busca ao recuperar o foco** (`refetchOnWindowFocus:
+'always'` só em `useLinks`, ignorando o `staleTime` de 30 s). O acesso a um
+link curto acontece em outra aba; sem isso a contagem de acessos só mudava com
+F5. O refetch é silencioso (sem skeleton nem barra) e não pisca a lista.
+
+**Dois indicadores, nunca o skeleton na revalidação:** `isPending` →
+skeleton de 5 linhas; `isFetchingNextPage` → spinner no rodapé. A revalidação
+(`isFetching` com dado em tela) não tem indicador: dura milissegundos, e a
+barra fina que existia no topo da lista ficava colada na borda do link
+recém-criado, parecendo uma borda azul piscando. Usar `isFetching` para o
+skeleton faria a lista sumir e reaparecer a cada criação/remoção — a
+invalidação de `['links']` conta como fetch — perdendo posição de rolagem
+numa ação que deveria ser incremental.
 
 **Erro de busca é estado distinto de lista vazia** (`isError && !data`
 renderiza bloco próprio com "Tentar novamente", separado do empty state) —
@@ -276,7 +309,21 @@ fácil de nunca notar.
 
 ---
 
+**A tela "Redirecionando..." fica visível por no mínimo 2 s**
+(`MIN_DISPLAY_MS` em `use-redirect.ts`), contados da montagem da página: com a
+API respondendo em milissegundos ela era um flash ilegível. O `PATCH /visits`
+sai imediatamente — só o `location.replace` espera — e uma API lenta consome
+o tempo mínimo em vez de somar a ele.
+
 ## Desvios deliberados da especificação
+
+**A lista exibe `brev.ly/<slug>`, não a URL real** — o `DESIGN.md` §5.2.2
+alerta contra o texto fixo `brev.ly/`. O texto é marca, como no Figma e como
+já aparece no prefixo do formulário e no diálogo de exclusão; o que o spec
+protege de fato é a **cópia**, e ela continua vindo de `buildShortUrl`
+(`VITE_FRONTEND_URL`), assim como o `href`. A armadilha real, vista nas duas
+implementações de referência, é copiar `window.location.origin` — isso não
+acontece aqui.
 
 **URL original com `truncate`, não `break-all`** — o `DESIGN.md` §5.4 pede
 `break-all`. Mantido `truncate` (com texto completo em `title`) porque as

@@ -34,7 +34,7 @@ export function ExportCsvButton({ disabled }: { disabled: boolean }) {
       loading={isPending}
       disabled={disabled}
     >
-      <DownloadSimpleIcon className="size-4" aria-hidden />
+      <DownloadSimpleIcon className="size-4 text-gray-600" aria-hidden />
       Baixar CSV
     </Button>
   )

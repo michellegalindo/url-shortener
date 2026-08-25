@@ -1,10 +1,10 @@
-import { useEffect, useId, useRef } from 'react'
+import { type ReactNode, useEffect, useId, useRef } from 'react'
 import { Button } from './button'
 
 type ConfirmDialogProps = {
   open: boolean
   title: string
-  description: string
+  description: ReactNode
   confirmLabel: string
   loading?: boolean
   onConfirm: () => void

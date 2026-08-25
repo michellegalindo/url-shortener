@@ -8,6 +8,24 @@ describe('createLinkSchema', () => {
     expect(createLinkSchema.safeParse(valid).success).toBe(true)
   })
 
+  it('aceita localhost com porta', () => {
+    expect(
+      createLinkSchema.safeParse({
+        ...valid,
+        originalUrl: 'http://localhost:5173/weq21e',
+      }).success
+    ).toBe(true)
+  })
+
+  it('prefixa https:// na URL sem esquema', () => {
+    const parsed = createLinkSchema.parse({
+      ...valid,
+      originalUrl: 'linkedin.com/in/myprofile',
+    })
+
+    expect(parsed.originalUrl).toBe('https://linkedin.com/in/myprofile')
+  })
+
   it('normaliza o apelido para minúsculas', () => {
     const parsed = createLinkSchema.parse({ ...valid, slug: 'MeuLink' })
 
@@ -24,12 +42,16 @@ describe('createLinkSchema', () => {
   // 'javascript:alert(1)' cobre a mesma restrição de protocolo do servidor
   // (server/src/infra/shared/schemas.ts originalUrlSchema): sem ela, o
   // cliente aceitaria uma URL que a API sempre rejeita com 400.
-  it.each(['nao-e-url', 'example.com', '', 'javascript:alert(1)'])(
-    'rejeita a URL %s',
-    originalUrl => {
-      expect(
-        createLinkSchema.safeParse({ ...valid, originalUrl }).success
-      ).toBe(false)
-    }
-  )
+  it.each([
+    'nao-e-url',
+    '',
+    'javascript:alert(1)',
+    'http://w',
+    'http://example',
+    'https://www.petlove',
+  ])('rejeita a URL %s', originalUrl => {
+    expect(createLinkSchema.safeParse({ ...valid, originalUrl }).success).toBe(
+      false
+    )
+  })
 })

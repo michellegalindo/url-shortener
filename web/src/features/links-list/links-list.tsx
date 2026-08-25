@@ -1,5 +1,5 @@
 import { WarningIcon } from '@phosphor-icons/react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import type { Link } from '@/lib/api'
@@ -19,20 +19,32 @@ export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
     data,
     isPending,
     isError,
-    isFetching,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
     refetch,
   } = useLinks()
 
-  const scrollRef = useRef<HTMLUListElement>(null)
   const sentinelRef = useRef<HTMLLIElement>(null)
+
+  // uma página por vez: enquanto a última página ainda entra em cascata, o
+  // observer não pede a próxima — senão a de baixo aparece antes da de cima.
+  // Liga quando uma página além da primeira chega; o último item dela
+  // desliga quando COMEÇA a animar (onAnimationStart): a página seguinte
+  // nunca chega antes disso, então a ordem se mantém sem esperar o fim da
+  // cascata inteira (declarativo, sem timer)
+  const [isEntering, setIsEntering] = useState(false)
+  const pageCount = data?.pages.length ?? 0
+  const lastPageSize = data?.pages.at(-1)?.links.length ?? 0
+
+  useEffect(() => {
+    if (pageCount > 1 && lastPageSize > 0) setIsEntering(true)
+  }, [pageCount, lastPageSize])
 
   useEffect(() => {
     const sentinel = sentinelRef.current
 
-    if (!sentinel || !hasNextPage) return
+    if (!sentinel || !hasNextPage || isEntering) return
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -40,16 +52,16 @@ export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
           fetchNextPage()
         }
       },
-      // root é a LISTA, não a janela: o scroll acontece dentro do card, e com
-      // o root padrão o sentinela nunca entra em interseção — a lista para de
-      // carregar ao chegar no fim, sem erro nenhum (§5.3)
-      { root: scrollRef.current, threshold: 0.1 }
+      // root padrão (viewport): a paginação usa o scroll nativo da página, sem
+      // rolagem própria no card. rootMargin antecipa a próxima página antes
+      // de o sentinela entrar na tela (§5.3)
+      { rootMargin: '200px', threshold: 0 }
     )
 
     observer.observe(sentinel)
 
     return () => observer.disconnect()
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, isEntering])
 
   if (isPending) {
     return <LinksListSkeleton />
@@ -72,7 +84,12 @@ export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
     )
   }
 
-  const links = data?.pages.flatMap(page => page.links) ?? []
+  // guarda de qual página cada link veio: as páginas seguintes entram em
+  // cascata, a primeira não (ela já tem o skeleton)
+  const links =
+    data?.pages.flatMap((page, pageIndex) =>
+      page.links.map((link, indexInPage) => ({ link, pageIndex, indexInPage }))
+    ) ?? []
 
   if (links.length === 0) {
     return <LinksListEmpty />
@@ -80,32 +97,37 @@ export function LinksList({ onCopy, onDelete, deletingSlug }: LinksListProps) {
 
   return (
     <div className="relative">
-      {/* barra fina no revalidar, skeleton só na primeira carga: disparar o
-          skeleton por isFetching faria a lista sumir a cada criação ou
-          remoção de link (§5.3) */}
-      {isFetching && !isFetchingNextPage && (
-        <div
-          className="absolute inset-x-0 top-0 h-0.5 overflow-hidden"
-          aria-hidden
-        >
-          <div className="h-full w-1/3 animate-pulse bg-blue-base" />
-        </div>
-      )}
-
-      <ul ref={scrollRef} className="max-h-[26rem] overflow-y-auto">
-        {links.map(link => (
+      {/* skeleton só na primeira carga (isPending): a revalidação por
+          isFetching não tem indicador — dura milissegundos, e uma barra no
+          topo da lista se confundia com a borda do link recém-criado (§5.3) */}
+      <ul>
+        {links.map(({ link, pageIndex, indexInPage }) => (
           <LinkItem
             key={link.slug}
             link={link}
             onCopy={onCopy}
             onDelete={onDelete}
             isDeleting={deletingSlug === link.slug}
+            enterDelayMs={pageIndex > 0 ? indexInPage * 40 : null}
+            onEnterStart={
+              pageIndex === pageCount - 1 && indexInPage === lastPageSize - 1
+                ? () => setIsEntering(false)
+                : undefined
+            }
           />
         ))}
 
         {hasNextPage && (
           <li ref={sentinelRef} className="flex justify-center py-4">
             {isFetchingNextPage && <Spinner className="text-gray-400" />}
+          </li>
+        )}
+
+        {/* só depois de paginar: numa lista que coube numa página o aviso
+            seria ruído */}
+        {!hasNextPage && pageCount > 1 && (
+          <li className="border-t border-gray-200 pt-6 pb-4 text-center text-sm text-gray-300">
+            Todos os links carregados
           </li>
         )}
       </ul>

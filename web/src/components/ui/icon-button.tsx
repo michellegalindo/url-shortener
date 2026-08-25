@@ -7,12 +7,15 @@ type IconButtonProps = ComponentProps<'button'> & {
   /** anunciado por leitores de tela; `title` não é lido de forma confiável */
   label: string
   loading?: boolean
+  /** cor que o botão assume no hover/foco: marca (padrão) ou perigo */
+  tone?: 'brand' | 'danger'
 }
 
 export function IconButton({
   icon,
   label,
   loading = false,
+  tone = 'brand',
   className,
   disabled,
   ...props
@@ -26,9 +29,11 @@ export function IconButton({
       disabled={disabled || loading}
       className={cn(
         'flex size-8 cursor-pointer items-center justify-center rounded-sm',
-        'bg-gray-200 text-gray-600 ring-1 ring-transparent transition-colors',
-        'hover:ring-blue-base',
-        'focus-visible:outline-2 focus-visible:outline-blue-base focus-visible:outline-offset-2',
+        'bg-gray-200 text-gray-600 transition-colors',
+        'hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2',
+        tone === 'danger'
+          ? 'hover:bg-danger focus-visible:outline-danger'
+          : 'hover:bg-blue-base focus-visible:outline-blue-base',
         'disabled:pointer-events-none disabled:opacity-50',
         className
       )}
