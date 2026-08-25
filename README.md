@@ -341,3 +341,7 @@ Resumo das escolhas que não são óbvias ao ler o código:
   próprio front (por exemplo `assets`) respondem `409` como se já existissem.
 - **Validação com Zod nas duas pontas.** O front valida antes de enviar
   (feedback imediato) e a API valida de novo (`400` com `issues[]`).
+- **A interface exibe `brev.ly/<slug>`, não `localhost:5173/<slug>`.** É a
+  marca, fiel ao Figma e mais limpa de ler; `localhost` poluiria a tela e
+  mudaria a cada ambiente. A URL funcional (`href`, copiar, CSV) vem de
+  `VITE_FRONTEND_URL`; o nome fica isolado em `web/src/lib/brand.ts`.
