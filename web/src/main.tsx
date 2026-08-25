@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Providers } from './app/providers'
 import './styles/globals.css'
 
 const root = document.getElementById('root')
@@ -10,6 +11,6 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <h1 className="text-xl text-blue-base">Brev.ly</h1>
+    <Providers />
   </StrictMode>
 )
