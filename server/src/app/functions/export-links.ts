@@ -35,6 +35,25 @@ const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
   minute: '2-digit',
 })
 
+// nome de arquivo: YYYY-MM-DD-HHmmss no fuso local — ordena por hora numa
+// listagem e não contém caracteres que precisem de escape no header
+function fileTimestamp(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date)
+
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? ''
+
+  return `${get('year')}-${get('month')}-${get('day')}-${get('hour')}${get('minute')}${get('second')}`
+}
+
 export async function exportLinks({
   uploader,
 }: ExportLinksInput): Promise<Either<Error, ExportLinksOutput>> {
@@ -94,10 +113,18 @@ export async function exportLinks({
 
   // o upload precisa começar ANTES de o pipeline bombear: sem consumidor, o
   // PassThrough enche o buffer e o pipeline trava por contrapressão
+  // a chave é aleatória e única (requisito); o nome que o navegador salva é
+  // o `filename` do Content-Disposition — sem ele, o browser deriva do caminho
+  // e o usuário recebe "exports_<uuid>-links.csv". O nome também precisa ser
+  // único (várias exportações no mesmo dia): timestamp até o segundo mais o
+  // início do mesmo uuid da chave, o que ainda liga o arquivo ao objeto
+  const id = randomUUID()
+  const filename = `brevly-links-${fileTimestamp(new Date())}-${id.slice(0, 8)}.csv`
+
   const uploadPromise = uploader.upload({
-    key: `exports/${randomUUID()}-links.csv`,
+    key: `exports/${id}-links.csv`,
     contentType: 'text/csv',
-    contentDisposition: 'attachment',
+    contentDisposition: `attachment; filename="${filename}"`,
     body,
   })
 

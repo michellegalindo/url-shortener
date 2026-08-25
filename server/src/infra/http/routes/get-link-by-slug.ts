@@ -13,7 +13,7 @@ export const getLinkBySlugRoute: FastifyPluginAsyncZod = async app => {
         description: 'Não incrementa a contagem de acessos.',
         tags: ['links'],
         params: z.object({ slug: z.string() }),
-        response: { 200: linkSchema, 400: errorSchema, 404: errorSchema },
+        response: { 200: linkSchema, 404: errorSchema },
       },
     },
     async (request, reply) => {

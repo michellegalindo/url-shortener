@@ -1,9 +1,7 @@
 # Brev.ly — Plano de Implementação: Front-end
 
-> **Para executores agênticos:** SUB-SKILL OBRIGATÓRIA: use
-> `superpowers:subagent-driven-development` (recomendado) ou
-> `superpowers:executing-plans` para implementar tarefa a tarefa. Os passos
-> usam checkbox (`- [ ]`) para acompanhamento.
+> **Execução:** implemente tarefa a tarefa, na ordem. Os passos usam checkbox
+> (`- [ ]`) para acompanhamento.
 
 **Goal:** Construir a SPA React que consome a API do Brev.ly — cadastro,
 listagem com scroll infinito, cópia, remoção, download do relatório CSV e
@@ -17,8 +15,9 @@ TanStack Query; estado visual derivado de pseudo-classes do CSS, não de
 TanStack Query v5 · React Hook Form + Zod · Phosphor Icons · Sonner · Vitest
 
 **Spec:** [`docs/DESIGN.md`](./DESIGN.md) §5 — o plano argumenta a partir do
-spec; leia os dois. O plano do servidor é
-[`docs/PLAN-SERVER.md`](./PLAN-SERVER.md).
+spec; leia os dois. O servidor já está implementado; o que ele expõe e as decisões
+que o front precisa respeitar estão em
+[`docs/DECISIONS-SERVER.md`](./DECISIONS-SERVER.md).
 
 **Pré-requisito:** o servidor precisa estar implementado e rodando em
 `http://localhost:3333`. As tarefas 6 em diante verificam contra a API real.
@@ -1105,27 +1104,56 @@ git commit -m "feat(web): add ui components with css-driven state"
 
 ```ts
 import { describe, expect, it } from 'vitest'
+import { RESERVED_SLUGS } from '../../../server/src/infra/shared/reserved-slugs'
 import { ROUTES, STATIC_PATHS } from './routes'
 
 describe('tabela de rotas', () => {
-  it('tem exatamente três rotas', () => {
-    expect(Object.keys(ROUTES)).toHaveLength(3)
-  })
-
-  it('não declara rota estática além da raiz', () => {
-    expect(STATIC_PATHS).toEqual([])
+  it('declara as três rotas da aplicação', () => {
+    expect(ROUTES.home).toBe('/')
+    expect(ROUTES.redirect).toBe('/:slug')
+    expect(ROUTES.notFound).toBe('*')
   })
 
   it('resolve o caminho de um slug', () => {
     expect(ROUTES.redirectTo('meu-link')).toBe('/meu-link')
   })
+
+  it('todo caminho estático do front está reservado no servidor', () => {
+    const desprotegidos = STATIC_PATHS.filter(
+      path => !RESERVED_SLUGS.includes(path as (typeof RESERVED_SLUGS)[number])
+    )
+
+    expect(desprotegidos).toEqual([])
+  })
 })
 ```
 
-O segundo teste é um **alarme**, não uma verificação de correção: ele quebra no
-instante em que alguém adiciona uma rota estática, forçando a atualização do
-`RESERVED_SLUGS` no servidor. Sem ele, as duas listas divergem em silêncio e um
-apelido vira inalcançável sem erro em lugar nenhum (D12, D17).
+O terceiro teste é o que o spec exige (§4.3.1, §5.3): ele **confronta** a
+blocklist do servidor com a tabela de rotas, em vez de apenas alarmar. A
+diferença aparece no dia em que alguém adiciona `/sobre`:
+
+| | teste que afirma `STATIC_PATHS === []` | teste que confronta as listas |
+|---|---|---|
+| Rota adicionada sem reservar | falha | falha |
+| Depois de reservar `sobre` no servidor | **continua falhando** | passa |
+| Correção natural de quem vê a falha | editar o teste para `toEqual(['sobre'])` | reservar o slug |
+| Estado depois disso | teste repete a constante; **ninguém mais confere o servidor** | segue conferindo |
+
+Um alarme que se cala editando o próprio alarme não é defesa. A relação de
+subconjunto se mantém sozinha conforme as rotas crescem — e é por isso que o
+spec pede confronto, não contagem.
+
+`RESERVED_SLUGS` é importado por caminho relativo direto, sem `web` depender do
+pacote `server`: o arquivo `reserved-slugs.ts` não tem nenhum import, então nada
+mais é arrastado junto e a validação de ambiente do servidor não dispara. Se o
+`tsc` do `web` reclamar do arquivo estar fora do `rootDir`, inclua-o no
+`include` do tsconfig do front — não duplique a lista, que é exatamente o
+defeito que este teste existe para pegar.
+
+A assimetria com `assets` é esperada: ele está no `RESERVED_SLUGS` sem estar em
+`STATIC_PATHS`, porque é diretório de build do Vite e não rota do React. Por
+isso a asserção é de subconjunto e não de igualdade — reservar demais custa um
+apelido, reservar de menos custa um link inalcançável para sempre (D12, D17).
 
 - [ ] **Step 2: Rodar e confirmar que falha**
 
@@ -1153,6 +1181,9 @@ export const ROUTES = {
  * ⚠️ Toda entrada aqui precisa estar em RESERVED_SLUGS no servidor
  * (`server/src/infra/shared/reserved-slugs.ts`) — senão um apelido com esse nome é
  * criado com sucesso e fica permanentemente inalcançável.
+ *
+ * Isso é verificado: `routes.spec.ts` confronta esta lista com a do servidor e
+ * quebra se alguma entrada aqui não estiver reservada lá.
  *
  * Hoje vazio: a tela de link não encontrado é renderizada DENTRO de `/:slug`,
  * e não como rota própria (D17). O diretório `/assets/` do build do Vite não

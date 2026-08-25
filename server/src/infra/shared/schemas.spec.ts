@@ -51,4 +51,16 @@ describe('originalUrlSchema', () => {
   ])('rejeita %s', invalid => {
     expect(originalUrlSchema.safeParse(invalid).success).toBe(false)
   })
+
+  it('aceita URL com exatamente 2048 caracteres', () => {
+    const url = `https://example.com/${'a'.repeat(2048 - 20)}`
+    expect(url).toHaveLength(2048)
+    expect(originalUrlSchema.safeParse(url).success).toBe(true)
+  })
+
+  it('rejeita URL com mais de 2048 caracteres', () => {
+    const url = `https://example.com/${'a'.repeat(2048 - 19)}`
+    expect(url).toHaveLength(2049)
+    expect(originalUrlSchema.safeParse(url).success).toBe(false)
+  })
 })

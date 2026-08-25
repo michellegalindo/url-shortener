@@ -14,7 +14,11 @@ export const slugSchema = z
       )
   )
 
-export const originalUrlSchema = z.url({
-  protocol: /^https?$/,
-  error: 'Informe uma URL válida',
-})
+// 2048 é o limite prático de URL na maioria dos navegadores e proxies; a
+// coluna é `text`, então sem isso um endpoint público aceitaria megabytes
+export const originalUrlSchema = z
+  .url({
+    protocol: /^https?$/,
+    error: 'Informe uma URL válida',
+  })
+  .max(2048, 'A URL deve ter no máximo 2048 caracteres')

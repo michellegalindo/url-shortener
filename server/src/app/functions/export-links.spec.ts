@@ -68,7 +68,7 @@ describe('exportLinks', () => {
     expect(rows).toHaveLength(121) // cabeçalho + 120 linhas
   })
 
-  it('define o Content-Disposition como attachment', async () => {
+  it('define o Content-Disposition como attachment com nome amigável, datado e único', async () => {
     await db.insert(schema.links).values({
       originalUrl: 'https://example.com/a',
       slug: 'link-attachment',
@@ -77,7 +77,31 @@ describe('exportLinks', () => {
     const uploader = createInMemoryUploader()
     await exportLinks({ uploader })
 
-    expect(uploader.lastContentDisposition()).toBe('attachment')
+    // o nome que o navegador salva vem daqui, não da chave do objeto; o
+    // sufixo é o início do uuid da chave, então o arquivo aponta para o objeto
+    const disposition = uploader.lastContentDisposition()
+    const match = disposition.match(
+      /^attachment; filename="brevly-links-\d{4}-\d{2}-\d{2}-\d{6}-([0-9a-f]{8})\.csv"$/
+    )
+
+    expect(match).not.toBeNull()
+    expect(uploader.lastKey()).toMatch(
+      new RegExp(`^exports/${match?.[1]}[0-9a-f-]+-links\\.csv$`)
+    )
+  })
+
+  it('gera nomes de arquivo diferentes em exportações consecutivas', async () => {
+    await db.insert(schema.links).values({
+      originalUrl: 'https://example.com/a',
+      slug: 'link-unico',
+    })
+
+    const uploader = createInMemoryUploader()
+    await exportLinks({ uploader })
+    const first = uploader.lastContentDisposition()
+    await exportLinks({ uploader })
+
+    expect(uploader.lastContentDisposition()).not.toBe(first)
   })
 
   it('exporta a contagem de acessos', async () => {

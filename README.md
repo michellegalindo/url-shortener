@@ -4,9 +4,7 @@ Aplicação fullstack para gerenciamento de URLs encurtadas, com API REST em
 Fastify e interface React.
 
 - **Design e decisões técnicas:** [`docs/DESIGN.md`](./docs/DESIGN.md)
-- **Plano do servidor:** [`docs/PLAN-SERVER.md`](./docs/PLAN-SERVER.md)
-- **Decisões de execução do servidor:** [`docs/DECISIONS-SERVER.md`](./docs/DECISIONS-SERVER.md)
-  — onde o plano divergiu da realidade, e o que foi decidido
+- **Servidor — como ficou e por quê:** [`docs/DECISIONS-SERVER.md`](./docs/DECISIONS-SERVER.md)
 
 ## Estrutura
 
@@ -32,9 +30,10 @@ As cinco chaves `CLOUDFLARE_*` do `.env.example` vêm vazias (`""`) de
 propósito — são as chaves do enunciado do desafio, e o repositório não pode
 carregar segredos. `server/src/env.ts` valida essas variáveis com `.min(1)` /
 `z.url()` e falha a inicialização do processo se alguma estiver vazia, então
-é preciso preencher as cinco com **algum** valor não vazio antes de subir o
-servidor — placeholders bastam para exercitar tudo exceto a exportação para o
-R2, que exige credenciais reais.
+é preciso preencher as cinco antes de subir o servidor. Placeholders bastam
+para exercitar tudo exceto a exportação para o R2, que exige credenciais
+reais — mas `CLOUDFLARE_PUBLIC_URL` precisa ser uma URL válida (por exemplo
+`http://localhost:9999`), não qualquer texto.
 
 O `server/.env.test` já vem versionado — não contém segredos e aponta para o
 banco local de teste, então `pnpm test` funciona sem configuração adicional.
@@ -163,5 +162,6 @@ curl -sO "$REPORT_URL"
 O caminho de upload é verificado por testes automatizados contra um dublê em
 memória, que confere os bytes reais do CSV gerado (cabeçalho, colunas,
 contagem de linhas em múltiplos lotes do cursor). O round trip real contra o
-R2 exige credenciais que este repositório deliberadamente não carrega, então
-precisa ser verificado manualmente após configurar o bucket (seção acima).
+R2 exige credenciais que este repositório deliberadamente não carrega — foi
+verificado manualmente contra um bucket real, e precisa ser repetido em cada
+ambiente novo depois de configurar o bucket (seção acima).
