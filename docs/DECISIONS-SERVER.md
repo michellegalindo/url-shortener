@@ -265,16 +265,15 @@ porque cada exportação cria um objeto e nada os remove.
 
 ## Pendências
 
-**Para o front — o item mais importante desta lista:**
-
-O `DESIGN.md` (§4.3.1, §4.9) exige **um teste que confronte a blocklist de slugs
-reservados com a tabela de rotas do front**, para que as duas não divirjam em
-silêncio. Ele não existe e não pode existir ainda: `web/` ainda não tem tabela de
-rotas. Hoje `reserved-slugs.spec.ts` espelha os valores à mão.
-
-Um apelido que colida com uma rota estática do front é criado com sucesso e fica
-**inalcançável para sempre, sem erro em lugar nenhum**. O teste é a única defesa
-contra a lista e as rotas divergirem no futuro.
+**O item mais importante desta lista foi entregue.** O `DESIGN.md` (§4.3.1,
+§4.9) exige um teste que confronte a blocklist de slugs reservados com a
+tabela de rotas do front. Ele existe em `web/src/app/routes.spec.ts`: importa
+`RESERVED_SLUGS` diretamente deste arquivo (`server/src/infra/shared/reserved-slugs.ts`)
+e falha se algum caminho estático do front não estiver reservado aqui.
+Detalhes em [`DECISIONS-WEB.md`](./DECISIONS-WEB.md#rotas). O risco que o
+teste mitiga continua o mesmo caso a lista volte a divergir: um apelido que
+colida com uma rota estática do front é criado com sucesso e fica
+**inalcançável para sempre, sem erro em lugar nenhum**.
 
 **Uma observação registrada, sem correção:**
 

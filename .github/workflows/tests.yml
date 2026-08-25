@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Server test suite
+    name: Test suite
     runs-on: ubuntu-latest
 
     services:
@@ -43,3 +43,9 @@ jobs:
       - run: pnpm --filter server exec tsc --noEmit
       - run: pnpm --filter server exec tsc -p tsconfig.vitest.json --noEmit
       - run: pnpm --filter server build
+      - run: pnpm --filter web test
+      - run: pnpm --filter web exec tsc --noEmit
+      - run: pnpm --filter web build
+        env:
+          VITE_FRONTEND_URL: http://localhost:5173
+          VITE_BACKEND_URL: http://localhost:3333

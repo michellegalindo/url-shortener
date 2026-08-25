@@ -5,6 +5,7 @@ Fastify e interface React.
 
 - **Design e decisões técnicas:** [`docs/DESIGN.md`](./docs/DESIGN.md)
 - **Servidor — como ficou e por quê:** [`docs/DECISIONS-SERVER.md`](./docs/DECISIONS-SERVER.md)
+- **Front-end — como ficou e por quê:** [`docs/DECISIONS-WEB.md`](./docs/DECISIONS-WEB.md)
 
 ## Estrutura
 
@@ -165,3 +166,59 @@ contagem de linhas em múltiplos lotes do cursor). O round trip real contra o
 R2 exige credenciais que este repositório deliberadamente não carrega — foi
 verificado manualmente contra um bucket real, e precisa ser repetido em cada
 ambiente novo depois de configurar o bucket (seção acima).
+
+## Front-end
+
+```bash
+cp web/.env.example web/.env
+cd web && pnpm dev
+```
+
+Aplicação em `http://localhost:5173`.
+
+A partir da raiz do repositório, sem precisar entrar em `web/`: `pnpm dev:web`
+equivale a `pnpm dev` e `pnpm test:web` equivale a `pnpm test`.
+
+### Variáveis de ambiente do web
+
+| Chave | Descrição |
+|---|---|
+| `VITE_FRONTEND_URL` | Base pública do front. Monta a URL curta exibida e copiada. **Deve ser igual a `FRONTEND_URL` do servidor** |
+| `VITE_BACKEND_URL` | Endereço da API |
+| `VITE_API_DELAY_MS` | Opcional. Atraso artificial nas requisições, para inspecionar os estados de carregamento |
+
+As variáveis `VITE_*` são embutidas no bundle em tempo de build — precisam existir no ambiente de build, não só no runtime.
+
+### Páginas
+
+| Rota | Descrição |
+|---|---|
+| `/` | Cadastro de link e listagem com scroll infinito |
+| `/:slug` | Resolve o apelido, incrementa a contagem e redireciona |
+| `*` | Página não encontrada |
+
+### Scripts
+
+| Script | Ação |
+|---|---|
+| `pnpm dev` | Servidor de desenvolvimento |
+| `pnpm build` | Type-check e build de produção |
+| `pnpm preview` | Serve o build localmente |
+| `pnpm test` | Testes de lógica |
+| `pnpm lint` (na raiz) | Biome — lint + formatação dos dois pacotes |
+
+### Publicação
+
+A aplicação é uma SPA cuja funcionalidade central é o acesso direto a `/:slug`.
+O host precisa reescrever toda rota desconhecida para `index.html`, senão cada
+link encurtado devolve 404 — e o problema **não aparece em desenvolvimento**,
+porque o servidor do Vite já faz esse redirecionamento.
+
+| Host | Configuração |
+|---|---|
+| nginx | `try_files $uri $uri/ /index.html;` |
+| Vercel | `"rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]` |
+| Netlify | `/* /index.html 200` em `public/_redirects` |
+
+Após publicar, abrir uma URL encurtada **em aba nova** — só o acesso direto
+exercita o rewrite.

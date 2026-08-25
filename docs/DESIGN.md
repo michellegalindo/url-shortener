@@ -878,14 +878,14 @@ texto de 24px com entrelinha de 14px sobrepõe as próprias linhas.
 
 #### Fontes
 
-**Open Sans** (corpo) e **Quicksand** (logo e títulos). As duas precisam ser
-efetivamente carregadas, via `@fontsource` ou link do Google Fonts no
-`index.html`. Declarar a família no CSS sem carregar o arquivo falha em
-silêncio: o navegador cai no sans-serif do sistema e o layout diverge do Figma
-sem nenhum erro no console.
+**Open Sans** em todo o texto, do corpo aos títulos; a Quicksand do Style
+Guide aparece só no logotipo, que é SVG. A fonte precisa ser efetivamente
+carregada, via `@fontsource` ou link do Google Fonts no `index.html`. Declarar
+a família no CSS sem carregar o arquivo falha em silêncio: o navegador cai no
+sans-serif do sistema e o layout diverge do Figma sem nenhum erro no console.
 
-Verificação: comparar visualmente um texto em Quicksand ao lado de um em Open
-Sans. Se forem idênticos, nenhuma das duas carregou.
+Verificação: comparar visualmente com o sans-serif do sistema (a Open Sans tem
+o `g` de dois andares e o `a` de duas caixas; a Helvetica/Arial não).
 
 ### 5.2 Estrutura
 
@@ -1168,19 +1168,19 @@ useInfiniteQuery({
 Criar ou deletar um link invalida `['links']`, o que refaz a busca a partir da
 primeira página.
 
-**O container de scroll é o `<ul>`, não a janela.** O Figma mostra a lista com
-rolagem própria dentro do card (`max-h-*` + `overflow-auto`), então o
-`IntersectionObserver` que dispara a próxima página precisa receber
-`root: <o elemento da lista>`. Com o `root` padrão (viewport), o sentinela nunca
-entra em interseção — a lista simplesmente para de carregar ao chegar no fim, sem
-erro.
+**A paginação usa o scroll nativo da página.** O card cresce com o conteúdo e
+o `IntersectionObserver` que dispara a próxima página usa o `root` padrão
+(viewport), com `rootMargin` para antecipar a carga. Dar ao card uma rolagem
+própria (`max-h-*` + `overflow-auto`) exigiria `root: <a lista>` — e, no
+mobile, um teto fixo pequeno que deixa a lista apertada e com dois scrolls
+aninhados. No desktop o formulário fica `sticky`, visível enquanto a lista rola.
 
 #### Dois indicadores de carregamento, não um
 
 | Estado do TanStack Query | Situação | Indicador |
 |---|---|---|
 | `isPending` | primeira carga, nada em cache | skeleton de 5 linhas |
-| `isFetching && !isPending` | revalidando com dado já em tela | barra fina no topo do card |
+| `isFetching && !isPending` | revalidando com dado já em tela | nenhum — dura milissegundos e uma barra no topo se confunde com a borda do primeiro item |
 | `isFetchingNextPage` | carregando página seguinte | spinner no rodapé da lista |
 
 A distinção importa: disparar o skeleton por `isFetching` faz a lista inteira
@@ -1347,7 +1347,7 @@ Nada disso é requisito nem pontua na correção:
 | Item | Risco | Mitigação |
 |---|---|---|
 | Acesso ao Figma | O arquivo é da Community; a extração via MCP pode falhar por permissão | **Deixou de ser bloqueante.** A paleta e a escala tipográfica estão documentadas em §5.1.1 e bastam para começar. O Figma segue como autoridade para espaçamentos e composição das telas. |
-| Carregamento das fontes | Open Sans e Quicksand declaradas mas não carregadas falham em silêncio, com fallback para o sans-serif do sistema | Conferir visualmente no navegador, não apenas no CSS. Um texto em Quicksand ao lado de um em Open Sans torna a diferença óbvia. |
+| Carregamento da fonte | Open Sans declarada mas não carregada falha em silêncio, com fallback para o sans-serif do sistema | Conferir visualmente no navegador, não apenas no CSS — o `g` de dois andares da Open Sans denuncia a diferença. |
 | Rewrite da SPA no host | Sem ele, toda URL encurtada devolve 404 em produção — e o dev server esconde o problema | Testar acesso direto em aba nova logo no primeiro deploy (§5.6). |
 | Credenciais do Cloudflare R2 | Bucket ainda não criado | A camada de storage recebe o uploader por parâmetro; testes usam duplo em memória. As credenciais entram só na validação manual do fluxo de export. |
 | Lifecycle rule esquecida na criação do bucket | É configuração manual no painel, invisível no código — nada no repositório denuncia a ausência, e o armazenamento cresce em silêncio | Passo explícito no roteiro de criação do bucket (§4.5.1) e no README. Verificar no painel do R2 após a primeira exportação. |

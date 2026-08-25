@@ -16,7 +16,11 @@
     "enabled": true,
     "rules": {
       "recommended": true,
-      "suspicious": { "noConsole": "error" }
+      "suspicious": { "noConsole": "error" },
+      "correctness": {
+        "useExhaustiveDependencies": "error",
+        "useHookAtTopLevel": "error"
+      }
     }
   },
   "javascript": {
@@ -27,6 +31,9 @@
       "jsxQuoteStyle": "double",
       "trailingCommas": "es5"
     }
+  },
+  "css": {
+    "parser": { "tailwindDirectives": true }
   },
   "overrides": [
     {

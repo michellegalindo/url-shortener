@@ -1,0 +1,164 @@
+@import "tailwindcss";
+
+@theme {
+  /* zera a paleta padrão do Tailwind: sem isso, gray-700/800/900 sobrevivem
+     e convivem duas rampas de cinza diferentes no projeto (§5.1.1) */
+  --color-*: initial;
+
+  --color-white: #ffffff;
+  --color-gray-100: #f9f9fb;
+  --color-gray-200: #e4e6ec;
+  --color-gray-300: #cdcfd5;
+  --color-gray-400: #74798b;
+  --color-gray-500: #4d505c;
+  --color-gray-600: #1f2025;
+
+  --color-blue-base: #2c46b1;
+  --color-blue-dark: #2c4091;
+
+  --color-danger: #b12c4d;
+
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-sans: "Open Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* tamanho, entrelinha e peso no MESMO token: não existe caminho para
+     aplicar um tamanho com a entrelinha de outro degrau (§5.1.1) */
+  --text-xs: 10px;
+  --text-xs--line-height: 14px;
+  --text-xs--font-weight: 400;
+
+  --text-sm: 12px;
+  --text-sm--line-height: 16px;
+  --text-sm--font-weight: 400;
+
+  --text-md: 14px;
+  --text-md--line-height: 18px;
+  --text-md--font-weight: 600;
+
+  --text-lg: 18px;
+  --text-lg--line-height: 24px;
+  --text-lg--font-weight: 700;
+
+  --text-xl: 24px;
+  --text-xl--line-height: 32px;
+  --text-xl--font-weight: 700;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-gray-200);
+    color: var(--color-gray-600);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced-motion reset must override component transitions */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced-motion reset must override component transitions */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced-motion reset must override component transitions */
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* entrada de um link novo na lista: desce com fade e um realce azul que
+   se dissipa, para o olho achar o item recém-criado. O reset de
+   prefers-reduced-motion acima zera a animação */
+@keyframes link-enter {
+  0% {
+    opacity: 0;
+    background-color: color-mix(
+      in srgb,
+      var(--color-blue-base) 7%,
+      transparent
+    );
+  }
+  35% {
+    opacity: 1;
+    background-color: color-mix(
+      in srgb,
+      var(--color-blue-base) 7%,
+      transparent
+    );
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.link-enter {
+  /* sem translateY: o deslocamento sobrepunha o fundo tingido ao item de
+     cima, e a border-top cruzava a faixa azul — a "borda piscando" */
+  background-clip: padding-box;
+  animation: link-enter 1.2s ease-out both;
+}
+
+/* itens de uma página carregada pelo scroll: entram em cascata (o atraso
+   por item vem inline), com fade e uma subida curta — o carregamento fica
+   visível pela entrada dos itens, não pelo spinner, que é rápido demais */
+@keyframes page-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: page-enter 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* tela de redirect: o ícone quica como uma bolinha — sobe com desaceleração,
+   cai com aceleração e achata no toque (squash & stretch). O reset de
+   prefers-reduced-motion acima zera a animação */
+@keyframes redirect-bounce {
+  /* começa no alto e cai: a queda ocupa 42% do ciclo e a subida 58% —
+     cai mais rápido do que sobe */
+  0%,
+  100% {
+    transform: translateY(-8px) scale(0.98, 1.02);
+    animation-timing-function: ease-in;
+  }
+  32% {
+    transform: translateY(4px) scale(1, 1);
+  }
+  42% {
+    transform: translateY(8px) scale(1.05, 0.95);
+    animation-timing-function: ease-out;
+  }
+  56% {
+    transform: translateY(4px) scale(1, 1);
+  }
+}
+
+.redirect-bounce {
+  transform-origin: center bottom;
+  animation: redirect-bounce 0.85s infinite;
+}
+
+/* toasts com fundo na cor do estado, sem borda, e texto e ícone brancos (os
+   ícones do Sonner usam fill="currentColor"), sem richColors nem ícone
+   customizado */
+[data-sonner-toast][data-type="success"],
+[data-sonner-toast][data-type="error"] {
+  color: var(--color-white);
+  border: 0;
+}
+
+[data-sonner-toast][data-type="success"] {
+  background-color: var(--color-blue-base);
+}
+
+[data-sonner-toast][data-type="error"] {
+  background-color: var(--color-danger);
+}
