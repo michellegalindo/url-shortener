@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  /* zera a paleta padrão do Tailwind: sem isso, gray-700/800/900 sobrevivem
+     e convivem duas rampas de cinza diferentes no projeto (§5.1.1) */
+  --color-*: initial;
+
+  --color-white: #ffffff;
+  --color-gray-100: #f9f9fb;
+  --color-gray-200: #e4e6ec;
+  --color-gray-300: #cdcfd5;
+  --color-gray-400: #74798b;
+  --color-gray-500: #4d505c;
+  --color-gray-600: #1f2025;
+
+  --color-blue-base: #2c46b1;
+  --color-blue-dark: #2c4091;
+
+  --color-danger: #b12c4d;
+
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-sans: "Open Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Quicksand", ui-sans-serif, system-ui, sans-serif;
+
+  /* tamanho, entrelinha e peso no MESMO token: não existe caminho para
+     aplicar um tamanho com a entrelinha de outro degrau (§5.1.1) */
+  --text-xs: 10px;
+  --text-xs--line-height: 14px;
+  --text-xs--font-weight: 400;
+
+  --text-sm: 12px;
+  --text-sm--line-height: 16px;
+  --text-sm--font-weight: 400;
+
+  --text-md: 14px;
+  --text-md--line-height: 18px;
+  --text-md--font-weight: 600;
+
+  --text-lg: 18px;
+  --text-lg--line-height: 24px;
+  --text-lg--font-weight: 700;
+
+  --text-xl: 24px;
+  --text-xl--line-height: 32px;
+  --text-xl--font-weight: 700;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-gray-200);
+    color: var(--color-gray-600);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

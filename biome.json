@@ -28,6 +28,9 @@
       "trailingCommas": "es5"
     }
   },
+  "css": {
+    "parser": { "tailwindDirectives": true }
+  },
   "overrides": [
     {
       "includes": ["server/src/scripts/**", "server/src/test/**"],

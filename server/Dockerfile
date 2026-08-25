@@ -7,6 +7,7 @@ RUN corepack enable
 FROM base AS builder
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY server/package.json server/package.json
+COPY web/package.json web/package.json
 RUN pnpm install --frozen-lockfile --filter server
 COPY server server
 RUN pnpm --filter server build
@@ -16,6 +17,7 @@ ENV NODE_ENV=production
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY server/package.json server/package.json
+COPY web/package.json web/package.json
 RUN pnpm install --prod --frozen-lockfile --filter server
 
 COPY --from=builder /app/server/dist ./server/dist

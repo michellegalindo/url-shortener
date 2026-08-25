@@ -5,6 +5,8 @@
   "scripts": {
     "dev:server": "pnpm --filter server dev",
     "test:server": "pnpm --filter server test",
+    "dev:web": "pnpm --filter web dev",
+    "test:web": "pnpm --filter web test",
     "lint": "biome check .",
     "format": "biome check --write .",
     "docker:up": "docker compose up -d",
