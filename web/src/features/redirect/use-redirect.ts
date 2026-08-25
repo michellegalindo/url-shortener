@@ -50,7 +50,6 @@ export function useRedirect(slug: string) {
 
   return {
     originalUrl,
-    isLoading: query.isPending,
     // 404 e falha de transporte são estados distintos (D18)
     isNotFound: error instanceof ApiError && error.status === 404,
     isUnavailable:

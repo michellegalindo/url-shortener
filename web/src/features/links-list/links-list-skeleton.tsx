@@ -1,6 +1,6 @@
 // noArrayIndexKey rejects an index key; these rows never reorder or change
 // count, so a fixed label per row is a stable, honest key.
-const SKELETON_ROWS = ['a', 'b', 'c', 'd'] as const
+const SKELETON_ROWS = ['a', 'b', 'c', 'd', 'e'] as const
 
 export function LinksListSkeleton() {
   return (

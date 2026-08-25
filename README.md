@@ -186,6 +186,8 @@ equivale a `pnpm dev` e `pnpm test:web` equivale a `pnpm test`.
 | `VITE_BACKEND_URL` | Endereço da API |
 | `VITE_API_DELAY_MS` | Opcional. Atraso artificial nas requisições, para inspecionar os estados de carregamento |
 
+As variáveis `VITE_*` são embutidas no bundle em tempo de build — precisam existir no ambiente de build, não só no runtime.
+
 ### Páginas
 
 | Rota | Descrição |

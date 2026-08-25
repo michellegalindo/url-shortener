@@ -38,10 +38,12 @@ export function Button({
   density,
   loading = false,
   disabled,
+  type = 'button',
   ...props
 }: ButtonProps) {
   return (
     <button
+      type={type}
       className={button({ variant, density, class: className })}
       disabled={disabled || loading}
       aria-busy={loading}

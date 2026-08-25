@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { RESERVED_SLUGS } from '../../../server/src/infra/shared/reserved-slugs'
+import { routeObjects } from './route-objects'
 import { ROUTES, STATIC_PATHS } from './routes'
 
 describe('tabela de rotas', () => {
@@ -19,5 +20,11 @@ describe('tabela de rotas', () => {
     )
 
     expect(desprotegidos).toEqual([])
+  })
+
+  it('o router declara exatamente as três rotas de ROUTES', () => {
+    expect(routeObjects.map(route => route.path).sort()).toEqual(
+      [ROUTES.home, ROUTES.redirect, ROUTES.notFound].sort()
+    )
   })
 })

@@ -46,12 +46,16 @@ export function CreateLinkForm() {
       }
 
       if (error instanceof ApiError && error.issues) {
+        let handled = false
+
         for (const issue of error.issues) {
           if (issue.path === 'originalUrl' || issue.path === 'slug') {
             setError(issue.path, { message: issue.message })
+            handled = true
           }
         }
-        return
+
+        if (handled) return
       }
 
       toast.error(
